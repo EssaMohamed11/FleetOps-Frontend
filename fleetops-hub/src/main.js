@@ -1,6 +1,15 @@
 import { initRouter } from "./router/router.js";
+import {
+    createIcons,
+    icons,
+} from "https://unpkg.com/lucide@latest/dist/esm/lucide.js";
 
 initRouter({ outletId: "app-content" });
+createIcons({ icons });
+
+window.addEventListener("route:changed", () => {
+    createIcons({ icons });
+});
 
 initDashboardShell();
 
