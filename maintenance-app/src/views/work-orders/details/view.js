@@ -20,6 +20,8 @@ const STATUS_INDEX = {
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let currentOrder = null;
+let cleanupFns = [];
+let attachmentsCleanup = [];
 
 // ─── Rendering ───────────────────────────────────────────────────────────────
 
@@ -94,15 +96,26 @@ function renderAttachments(files) {
         `;
     }).join("");
 
+    attachmentsCleanup.forEach(fn => fn());
+    attachmentsCleanup = [];
+
     // Setup interactive clicks
     const items = grid.querySelectorAll(".wod-attachment-item");
     items.forEach(item => {
-        item.addEventListener("mouseenter", () => item.style.borderColor = "var(--color-primary)");
-        item.addEventListener("mouseleave", () => item.style.borderColor = "var(--color-border)");
-        item.addEventListener("click", () => {
+        const onEnter = () => item.style.borderColor = "var(--color-primary)";
+        const onLeave = () => item.style.borderColor = "var(--color-border)";
+        const onClick = () => {
             const fileName = item.getAttribute("data-file");
             const isImage = item.getAttribute("data-is-image") === "true";
             openLightbox(fileName, isImage);
+        };
+        item.addEventListener("mouseenter", onEnter);
+        item.addEventListener("mouseleave", onLeave);
+        item.addEventListener("click", onClick);
+        attachmentsCleanup.push(() => {
+            item.removeEventListener("mouseenter", onEnter);
+            item.removeEventListener("mouseleave", onLeave);
+            item.removeEventListener("click", onClick);
         });
     });
 }
@@ -123,11 +136,21 @@ function openLightbox(fileName, isImage) {
         `;
         document.body.appendChild(lightbox);
         
-        lightbox.querySelector(".wod-lightbox-overlay").addEventListener("click", () => {
+        const removeLightbox = () => {
             lightbox.classList.remove("wod-lightbox--open");
-        });
-        lightbox.querySelector(".wod-lightbox-close").addEventListener("click", () => {
-            lightbox.classList.remove("wod-lightbox--open");
+        };
+        const overlay = lightbox.querySelector(".wod-lightbox-overlay");
+        const closeBtn = lightbox.querySelector(".wod-lightbox-close");
+        
+        overlay.addEventListener("click", removeLightbox);
+        closeBtn.addEventListener("click", removeLightbox);
+        
+        cleanupFns.push(() => {
+            overlay.removeEventListener("click", removeLightbox);
+            closeBtn.removeEventListener("click", removeLightbox);
+            if (document.body.contains(lightbox)) {
+                document.body.removeChild(lightbox);
+            }
         });
     }
     
@@ -222,20 +245,24 @@ function initAssignmentEdit() {
         `<option value="${m.name === 'Unassigned' ? '' : m.name}">${m.name}</option>`
     ).join("");
 
-    editBtn.addEventListener("click", () => {
+    const onEdit = () => {
         displayBox.style.display = "none";
         editBox.style.display = "block";
         if (currentOrder && currentOrder.mechanic) {
             selectBox.value = currentOrder.mechanic.name === "Unassigned" ? "" : currentOrder.mechanic.name;
         }
-    });
+    };
+    editBtn.addEventListener("click", onEdit);
+    cleanupFns.push(() => editBtn.removeEventListener("click", onEdit));
 
-    cancelBtn.addEventListener("click", () => {
+    const onCancel = () => {
         displayBox.style.display = "block";
         editBox.style.display = "none";
-    });
+    };
+    cancelBtn.addEventListener("click", onCancel);
+    cleanupFns.push(() => cancelBtn.removeEventListener("click", onCancel));
 
-    saveBtn.addEventListener("click", () => {
+    const onSave = () => {
         if (!currentOrder) return;
         const success = WorkOrdersApi.updateOrderMechanic(currentOrder.id, selectBox.value);
         
@@ -249,12 +276,17 @@ function initAssignmentEdit() {
 
         displayBox.style.display = "block";
         editBox.style.display = "none";
-    });
+    };
+    saveBtn.addEventListener("click", onSave);
+    cleanupFns.push(() => saveBtn.removeEventListener("click", onSave));
 }
 
 // ─── Lifecycle ───────────────────────────────────────────────────────────────
 
 export function mount(container) {
+    cleanupFns = [];
+    attachmentsCleanup = [];
+    
     const id = queryParams().get("id");
     
     if (!id) {
@@ -274,5 +306,11 @@ export function mount(container) {
 }
 
 export function unmount() {
+    cleanupFns.forEach(fn => fn && fn());
+    cleanupFns = [];
+    
+    attachmentsCleanup.forEach(fn => fn && fn());
+    attachmentsCleanup = [];
+
     currentOrder = null;
 }

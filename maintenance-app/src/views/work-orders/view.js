@@ -69,6 +69,8 @@ function filteredOrders() {
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 
+let cleanupFns = [];
+
 function renderTable() {
     const tbody = document.getElementById("wo-tbody");
     const label = document.getElementById("wo-showing-label");
@@ -120,6 +122,9 @@ function renderTable() {
     renderPagination(totalN, state.page);
 }
 
+// Global variable for pagination delegator cleanup
+let paginationCleanup = null;
+
 function renderPagination(total, current) {
     const pag = document.getElementById("wo-pagination");
     if (!pag) return;
@@ -134,46 +139,93 @@ function renderPagination(total, current) {
     html += `<button class="wo-page-btn" id="pg-next" ${current >= totalPages ? "disabled" : ""}>&#8250;</button>`;
     pag.innerHTML = html;
 
-    pag.querySelectorAll("[data-page]").forEach(btn => {
-        btn.addEventListener("click", () => { state.page = parseInt(btn.dataset.page, 10); renderTable(); });
-    });
+    if (paginationCleanup) {
+        paginationCleanup();
+        paginationCleanup = null;
+    }
 
-    pag.querySelector("#pg-prev")?.addEventListener("click", () => { state.page--; renderTable(); });
-    pag.querySelector("#pg-next")?.addEventListener("click", () => { state.page++; renderTable(); });
+    // Use event delegation on the pagination container
+    const onClick = e => {
+        const btn = e.target.closest("button");
+        if (!btn || btn.disabled) return;
+
+        if (btn.id === "pg-prev") {
+            state.page--;
+            renderTable();
+        } else if (btn.id === "pg-next") {
+            state.page++;
+            renderTable();
+        } else if (btn.dataset.page) {
+            state.page = parseInt(btn.dataset.page, 10);
+            renderTable();
+        }
+    };
+
+    pag.addEventListener("click", onClick);
+    paginationCleanup = () => pag.removeEventListener("click", onClick);
+    cleanupFns.push(paginationCleanup);
 }
 
 // ─── Mount ────────────────────────────────────────────────────────────────────
 
+let mountedCleanup = []; // Additional cleanup for listeners added in mount()
+
 export function mount() {
     // Reset filters on each mount so returning from the create form starts fresh
     state = { search: "", status: "", type: "", page: 1 };
+    cleanupFns = [];
+    mountedCleanup = [];
 
     renderTable();
 
-    document.getElementById("wo-search-input")?.addEventListener("input", e => {
-        state.search = e.target.value;
-        state.page   = 1;
-        renderTable();
-    });
+    const searchInput = document.getElementById("wo-search-input");
+    if (searchInput) {
+        const handler = e => {
+            state.search = e.target.value;
+            state.page   = 1;
+            renderTable();
+        };
+        searchInput.addEventListener("input", handler);
+        mountedCleanup.push(() => searchInput.removeEventListener("input", handler));
+    }
 
-    document.getElementById("wo-status-filter")?.addEventListener("change", e => {
-        state.status = e.target.value;
-        state.page   = 1;
-        renderTable();
-    });
+    const statusFilter = document.getElementById("wo-status-filter");
+    if (statusFilter) {
+        const handler = e => {
+            state.status = e.target.value;
+            state.page   = 1;
+            renderTable();
+        };
+        statusFilter.addEventListener("change", handler);
+        mountedCleanup.push(() => statusFilter.removeEventListener("change", handler));
+    }
 
-    document.getElementById("wo-type-filter")?.addEventListener("change", e => {
-        state.type = e.target.value;
-        state.page = 1;
-        renderTable();
-    });
+    const typeFilter = document.getElementById("wo-type-filter");
+    if (typeFilter) {
+        const handler = e => {
+            state.type = e.target.value;
+            state.page = 1;
+            renderTable();
+        };
+        typeFilter.addEventListener("change", handler);
+        mountedCleanup.push(() => typeFilter.removeEventListener("change", handler));
+    }
 
-    document.getElementById("wo-select-all")?.addEventListener("change", e => {
-        document.querySelectorAll("#wo-tbody input[type='checkbox']")
-            .forEach(cb => { cb.checked = e.target.checked; });
-    });
+    const selectAllBtn = document.getElementById("wo-select-all");
+    if (selectAllBtn) {
+        const handler = e => {
+            document.querySelectorAll("#wo-tbody input[type='checkbox']")
+                .forEach(cb => { cb.checked = e.target.checked; });
+        };
+        selectAllBtn.addEventListener("change", handler);
+        mountedCleanup.push(() => selectAllBtn.removeEventListener("change", handler));
+    }
 }
 
 export function unmount() {
-    // Nothing persistent to clean up
+    cleanupFns.forEach(fn => fn && fn());
+    cleanupFns = [];
+    
+    mountedCleanup.forEach(fn => fn && fn());
+    mountedCleanup = [];
 }

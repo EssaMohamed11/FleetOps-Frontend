@@ -2,6 +2,7 @@ import WorkOrdersApi from "../../../services/api/work-orders.js";
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let attachedFiles = [];
+let cleanupFns = [];
 
 // ─── Populate vehicle select ─────────────────────────────────────────────────
 function populateVehicles() {
@@ -19,10 +20,12 @@ function populateVehicles() {
 function initTypeCards() {
     const cards = document.querySelectorAll(".cwo-type-card");
     cards.forEach(card => {
-        card.addEventListener("click", () => {
+        const onClick = () => {
             cards.forEach(c => c.classList.remove("cwo-type-card--active"));
             card.classList.add("cwo-type-card--active");
-        });
+        };
+        card.addEventListener("click", onClick);
+        cleanupFns.push(() => card.removeEventListener("click", onClick));
     });
 }
 
@@ -30,10 +33,12 @@ function initTypeCards() {
 function initPriorityPills() {
     const pills = document.querySelectorAll(".cwo-priority-pill");
     pills.forEach(pill => {
-        pill.addEventListener("click", () => {
+        const onClick = () => {
             pills.forEach(p => p.classList.remove("cwo-priority-pill--active"));
             pill.classList.add("cwo-priority-pill--active");
-        });
+        };
+        pill.addEventListener("click", onClick);
+        cleanupFns.push(() => pill.removeEventListener("click", onClick));
     });
 }
 
@@ -45,21 +50,31 @@ function initDropzone() {
     if (!zone || !fileInput || !fileList) return;
 
     // Drag-over highlight
-    zone.addEventListener("dragover", e => {
+    const onDragOver = e => {
         e.preventDefault();
         zone.classList.add("cwo-dropzone--dragover");
-    });
-    zone.addEventListener("dragleave", () => zone.classList.remove("cwo-dropzone--dragover"));
-    zone.addEventListener("drop", e => {
+    };
+    const onDragLeave = () => zone.classList.remove("cwo-dropzone--dragover");
+    const onDrop = e => {
         e.preventDefault();
         zone.classList.remove("cwo-dropzone--dragover");
         addFiles([...e.dataTransfer.files]);
+    };
+    zone.addEventListener("dragover", onDragOver);
+    zone.addEventListener("dragleave", onDragLeave);
+    zone.addEventListener("drop", onDrop);
+    cleanupFns.push(() => {
+        zone.removeEventListener("dragover", onDragOver);
+        zone.removeEventListener("dragleave", onDragLeave);
+        zone.removeEventListener("drop", onDrop);
     });
 
-    fileInput.addEventListener("change", () => {
+    const onChange = () => {
         addFiles([...fileInput.files]);
         fileInput.value = ""; // reset so same file can be re-added
-    });
+    };
+    fileInput.addEventListener("change", onChange);
+    cleanupFns.push(() => fileInput.removeEventListener("change", onChange));
 
     function addFiles(incoming) {
         const MAX = 10 * 1024 * 1024; // 10 MB
@@ -72,6 +87,7 @@ function initDropzone() {
     }
 }
 
+let fileListCleanup = [];
 function renderFileList(container) {
     container.innerHTML = attachedFiles.map((f, idx) => `
         <div class="cwo-file-item">
@@ -81,11 +97,16 @@ function renderFileList(container) {
         </div>
     `).join("");
 
+    fileListCleanup.forEach(fn => fn());
+    fileListCleanup = [];
+
     container.querySelectorAll(".cwo-file-item__remove").forEach(btn => {
-        btn.addEventListener("click", () => {
+        const onClick = () => {
             attachedFiles.splice(parseInt(btn.dataset.idx, 10), 1);
             renderFileList(container);
-        });
+        };
+        btn.addEventListener("click", onClick);
+        fileListCleanup.push(() => btn.removeEventListener("click", onClick));
     });
 }
 
@@ -184,7 +205,7 @@ function saveOrder(data) {
 
 // ─── Submit handler ──────────────────────────────────────────────────────────
 function initSubmit(form) {
-    form.addEventListener("submit", e => {
+    const onSubmit = e => {
         e.preventDefault();
         if (!validateForm(form)) return;
 
@@ -197,7 +218,9 @@ function initSubmit(form) {
         //   .then(r => r.json()).then(() => navigate());
 
         navigate("/work-orders");
-    });
+    };
+    form.addEventListener("submit", onSubmit);
+    cleanupFns.push(() => form.removeEventListener("submit", onSubmit));
 }
 
 // ─── SPA Navigation helper ───────────────────────────────────────────────────
@@ -208,6 +231,8 @@ function navigate(path) {
 
 // ─── Mount / Unmount ─────────────────────────────────────────────────────────
 export function mount() {
+    cleanupFns = [];
+    fileListCleanup = [];
     attachedFiles = []; // reset on each mount
 
     populateVehicles();
@@ -221,13 +246,21 @@ export function mount() {
     // Cancel button — works even if data-link isn't picked up
     const cancelBtn = document.querySelector("[data-cancel-nav]");
     if (cancelBtn) {
-        cancelBtn.addEventListener("click", e => {
+        const onCancel = e => {
             e.preventDefault();
             navigate("/work-orders");
-        });
+        };
+        cancelBtn.addEventListener("click", onCancel);
+        cleanupFns.push(() => cancelBtn.removeEventListener("click", onCancel));
     }
 }
 
 export function unmount() {
+    cleanupFns.forEach(fn => fn && fn());
+    cleanupFns = [];
+    
+    fileListCleanup.forEach(fn => fn && fn());
+    fileListCleanup = [];
+
     attachedFiles = [];
 }
