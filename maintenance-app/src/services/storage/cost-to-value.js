@@ -1,0 +1,278 @@
+// ─── Cost-to-Value — Seed / Mock Data ────────────────────────────────────────
+// CTV Ratio = (Total Repair Cost / Market Value) * 100
+// Risk Levels:
+//   Safe                   → CTV < 25%
+//   Monitor                → 25% ≤ CTV < 40%
+//   Retirement Recommended → CTV ≥ 40%
+
+export const CTV_THRESHOLDS = {
+    safe: 25,       // below this → Safe
+    monitor: 40,    // below this → Monitor, above → Retire
+};
+
+export const ctvMockVehicles = [
+    {
+        plate: "EGY-5678",
+        type: "Heavy",
+        model: "Mercedes Actros",
+        year: 2019,
+        status: "Out of Service",
+        marketValueEgp: 850000,
+        totalRepairCostEgp: 390000,
+        lastMajorRepair: "2026-03-27",
+        odometer: 142000,
+        nextServiceKm: 145000,
+        insuranceExpiry: "2026-04-20",
+        inspectionExpiry: "2026-03-01",
+        maxCapacityKg: 15000,
+        fuelLogs: [
+            { date: "2026-04-05", liters: 120, costEgp: 9120, odometer: 141500, supplier: "Total Egypt - 6th October" },
+            { date: "2026-03-22", liters: 115, costEgp: 8740, odometer: 139800, supplier: "Total Egypt - 6th October" },
+        ],
+        parts: [
+            { name: "Engine Oil", category: "Oils & Fluids", installedDate: "2025-10-05", lifespanKm: 5000, usedPct: 80 },
+            { name: "Air Filter", category: "Filters", installedDate: "2025-10-05", lifespanKm: 15000, usedPct: 27 },
+            { name: "Brake Pads (Front)", category: "Brakes", installedDate: "2025-06-12", lifespanKm: 20000, usedPct: 70 },
+            { name: "Serpentine Belt", category: "Engine", installedDate: "2024-08-01", lifespanKm: 40000, usedPct: 93 },
+        ],
+        maintenanceHistory: [
+            { id: "WO-2841", type: "Breakdown", mechanic: "Karim Hassan", status: "In Progress", repairCostEgp: null, opened: "2026-04-10", closed: null },
+            { id: "WO-2831", type: "Emergency", mechanic: "Karim Hassan", status: "Closed", repairCostEgp: 8500, opened: "2026-03-25", closed: "2026-03-27" },
+        ],
+    },
+    {
+        plate: "EGY-7890",
+        type: "Heavy",
+        model: "Volvo FH16",
+        year: 2018,
+        status: "Out of Service",
+        marketValueEgp: 750000,
+        totalRepairCostEgp: 310000,
+        lastMajorRepair: "2026-03-23",
+        odometer: 198000,
+        nextServiceKm: 200000,
+        insuranceExpiry: "2026-06-15",
+        inspectionExpiry: "2026-02-10",
+        maxCapacityKg: 18000,
+        fuelLogs: [
+            { date: "2026-04-03", liters: 130, costEgp: 9880, odometer: 197200, supplier: "Desert Haul Fuel" },
+            { date: "2026-03-18", liters: 125, costEgp: 9500, odometer: 195400, supplier: "Desert Haul Fuel" },
+        ],
+        parts: [
+            { name: "Engine Oil", category: "Oils & Fluids", installedDate: "2025-11-10", lifespanKm: 5000, usedPct: 72 },
+            { name: "Fuel Filter", category: "Filters", installedDate: "2025-09-20", lifespanKm: 20000, usedPct: 85 },
+            { name: "Brake Pads (Rear)", category: "Brakes", installedDate: "2025-07-05", lifespanKm: 20000, usedPct: 60 },
+            { name: "Coolant", category: "Oils & Fluids", installedDate: "2025-05-01", lifespanKm: 30000, usedPct: 45 },
+        ],
+        maintenanceHistory: [
+            { id: "WO-2838", type: "Emergency", mechanic: "Omar Youssef", status: "Closed", repairCostEgp: 12000, opened: "2026-03-20", closed: "2026-03-23" },
+            { id: "WO-2820", type: "Breakdown", mechanic: "Ahmed Sayed", status: "Closed", repairCostEgp: 9500, opened: "2026-02-10", closed: "2026-02-14" },
+        ],
+    },
+    {
+        plate: "EGY-6789",
+        type: "Light",
+        model: "Ford Ranger",
+        year: 2021,
+        status: "In Service",
+        marketValueEgp: 250000,
+        totalRepairCostEgp: 67000,
+        lastMajorRepair: "2026-04-08",
+        odometer: 54000,
+        nextServiceKm: 60000,
+        insuranceExpiry: "2027-01-10",
+        inspectionExpiry: "2026-09-15",
+        maxCapacityKg: 1200,
+        fuelLogs: [
+            { date: "2026-04-15", liters: 55, costEgp: 4180, odometer: 53800, supplier: "Nile Truck Stop" },
+            { date: "2026-04-01", liters: 52, costEgp: 3952, odometer: 52600, supplier: "Nile Truck Stop" },
+        ],
+        parts: [
+            { name: "Engine Oil", category: "Oils & Fluids", installedDate: "2026-01-15", lifespanKm: 5000, usedPct: 40 },
+            { name: "Air Filter", category: "Filters", installedDate: "2025-12-01", lifespanKm: 15000, usedPct: 30 },
+            { name: "Brake Pads (Front)", category: "Brakes", installedDate: "2025-10-20", lifespanKm: 20000, usedPct: 55 },
+        ],
+        maintenanceHistory: [
+            { id: "WO-2835", type: "Routine", mechanic: "Ahmed Sayed", status: "Closed", repairCostEgp: 3200, opened: "2026-04-06", closed: "2026-04-08" },
+            { id: "WO-2810", type: "Routine", mechanic: "Ahmed Sayed", status: "Closed", repairCostEgp: 2800, opened: "2026-01-12", closed: "2026-01-14" },
+        ],
+    },
+    {
+        plate: "EGY-0123",
+        type: "Heavy",
+        model: "MAN TGX",
+        year: 2020,
+        status: "Available",
+        marketValueEgp: 920000,
+        totalRepairCostEgp: 180000,
+        lastMajorRepair: null,
+        odometer: 87000,
+        nextServiceKm: 90000,
+        insuranceExpiry: "2026-12-01",
+        inspectionExpiry: "2026-11-20",
+        maxCapacityKg: 20000,
+        fuelLogs: [
+            { date: "2026-04-18", liters: 160, costEgp: 12160, odometer: 86500, supplier: "Desert Haul Fuel" },
+        ],
+        parts: [
+            { name: "Engine Oil", category: "Oils & Fluids", installedDate: "2026-02-01", lifespanKm: 5000, usedPct: 20 },
+            { name: "Air Filter", category: "Filters", installedDate: "2025-11-15", lifespanKm: 15000, usedPct: 35 },
+            { name: "Brake Pads (Front)", category: "Brakes", installedDate: "2025-08-10", lifespanKm: 20000, usedPct: 48 },
+        ],
+        maintenanceHistory: [
+            { id: "WO-2825", type: "Routine", mechanic: "Karim Hassan", status: "Closed", repairCostEgp: 5500, opened: "2026-02-20", closed: "2026-02-22" },
+        ],
+    },
+    {
+        plate: "EGY-8901",
+        type: "Refrigerated",
+        model: "Fuso Fighter",
+        year: 2020,
+        status: "Available",
+        marketValueEgp: 550000,
+        totalRepairCostEgp: 95000,
+        lastMajorRepair: null,
+        odometer: 63000,
+        nextServiceKm: 65000,
+        insuranceExpiry: "2026-10-05",
+        inspectionExpiry: "2026-08-30",
+        maxCapacityKg: 5000,
+        fuelLogs: [
+            { date: "2026-04-12", liters: 90, costEgp: 6840, odometer: 62800, supplier: "ColdChain Fuel" },
+        ],
+        parts: [
+            { name: "Engine Oil", category: "Oils & Fluids", installedDate: "2026-01-20", lifespanKm: 5000, usedPct: 35 },
+            { name: "Refrigerant", category: "Cooling", installedDate: "2025-10-10", lifespanKm: 20000, usedPct: 22 },
+            { name: "Brake Pads (Front)", category: "Brakes", installedDate: "2025-09-05", lifespanKm: 20000, usedPct: 40 },
+        ],
+        maintenanceHistory: [
+            { id: "WO-2818", type: "Routine", mechanic: "Omar Youssef", status: "Closed", repairCostEgp: 4200, opened: "2026-01-18", closed: "2026-01-20" },
+        ],
+    },
+    {
+        plate: "EGY-1234",
+        type: "Light",
+        model: "Toyota Hilux",
+        year: 2022,
+        status: "Available",
+        marketValueEgp: 320000,
+        totalRepairCostEgp: 45000,
+        lastMajorRepair: null,
+        odometer: 38000,
+        nextServiceKm: 40000,
+        insuranceExpiry: "2027-03-15",
+        inspectionExpiry: "2026-12-10",
+        maxCapacityKg: 1000,
+        fuelLogs: [
+            { date: "2026-04-14", liters: 50, costEgp: 3800, odometer: 37800, supplier: "Misr Fuel Station" },
+        ],
+        parts: [
+            { name: "Engine Oil", category: "Oils & Fluids", installedDate: "2026-02-10", lifespanKm: 5000, usedPct: 18 },
+            { name: "Air Filter", category: "Filters", installedDate: "2025-12-20", lifespanKm: 15000, usedPct: 25 },
+        ],
+        maintenanceHistory: [
+            { id: "WO-2812", type: "Routine", mechanic: "Ahmed Sayed", status: "Closed", repairCostEgp: 2200, opened: "2026-02-08", closed: "2026-02-10" },
+        ],
+    },
+    {
+        plate: "EGY-9012",
+        type: "Refrigerated",
+        model: "Isuzu NQR",
+        year: 2021,
+        status: "In Service",
+        marketValueEgp: 620000,
+        totalRepairCostEgp: 82000,
+        lastMajorRepair: null,
+        odometer: 71000,
+        nextServiceKm: 75000,
+        insuranceExpiry: "2026-11-20",
+        inspectionExpiry: "2026-10-05",
+        maxCapacityKg: 6000,
+        fuelLogs: [
+            { date: "2026-04-10", liters: 95, costEgp: 7220, odometer: 70600, supplier: "ColdChain Fuel" },
+        ],
+        parts: [
+            { name: "Engine Oil", category: "Oils & Fluids", installedDate: "2026-01-05", lifespanKm: 5000, usedPct: 28 },
+            { name: "Air Filter", category: "Filters", installedDate: "2025-11-01", lifespanKm: 15000, usedPct: 42 },
+            { name: "Brake Pads (Front)", category: "Brakes", installedDate: "2025-08-20", lifespanKm: 20000, usedPct: 52 },
+        ],
+        maintenanceHistory: [
+            { id: "WO-2822", type: "Routine", mechanic: "Karim Hassan", status: "Closed", repairCostEgp: 3800, opened: "2026-03-01", closed: "2026-03-03" },
+        ],
+    },
+    {
+        plate: "EGY-2345",
+        type: "Refrigerated",
+        model: "Hyundai HD78",
+        year: 2022,
+        status: "Available",
+        marketValueEgp: 480000,
+        totalRepairCostEgp: 38000,
+        lastMajorRepair: "2026-04-06",
+        odometer: 29000,
+        nextServiceKm: 30000,
+        insuranceExpiry: "2027-02-28",
+        inspectionExpiry: "2026-12-15",
+        maxCapacityKg: 4500,
+        fuelLogs: [
+            { date: "2026-04-08", liters: 75, costEgp: 5700, odometer: 28800, supplier: "Reefer Energy Co." },
+        ],
+        parts: [
+            { name: "Engine Oil", category: "Oils & Fluids", installedDate: "2026-03-01", lifespanKm: 5000, usedPct: 12 },
+            { name: "Air Filter", category: "Filters", installedDate: "2026-01-10", lifespanKm: 15000, usedPct: 20 },
+        ],
+        maintenanceHistory: [
+            { id: "WO-2833", type: "Routine", mechanic: "Omar Youssef", status: "Closed", repairCostEgp: 1800, opened: "2026-04-04", closed: "2026-04-06" },
+        ],
+    },
+    {
+        plate: "EGY-4567",
+        type: "Light",
+        model: "Nissan Navara",
+        year: 2022,
+        status: "Available",
+        marketValueEgp: 310000,
+        totalRepairCostEgp: 18000,
+        lastMajorRepair: "2026-04-04",
+        odometer: 22000,
+        nextServiceKm: 25000,
+        insuranceExpiry: "2027-04-01",
+        inspectionExpiry: "2026-11-30",
+        maxCapacityKg: 900,
+        fuelLogs: [
+            { date: "2026-04-11", liters: 45, costEgp: 3420, odometer: 21800, supplier: "DriveOne Station" },
+        ],
+        parts: [
+            { name: "Engine Oil", category: "Oils & Fluids", installedDate: "2026-03-10", lifespanKm: 5000, usedPct: 8 },
+            { name: "Air Filter", category: "Filters", installedDate: "2026-01-20", lifespanKm: 15000, usedPct: 15 },
+        ],
+        maintenanceHistory: [
+            { id: "WO-2830", type: "Routine", mechanic: "Ahmed Sayed", status: "Closed", repairCostEgp: 1200, opened: "2026-04-02", closed: "2026-04-04" },
+        ],
+    },
+    {
+        plate: "EGY-3456",
+        type: "Light",
+        model: "Mitsubishi L200",
+        year: 2023,
+        status: "Available",
+        marketValueEgp: 280000,
+        totalRepairCostEgp: 12000,
+        lastMajorRepair: "2026-04-09",
+        odometer: 15000,
+        nextServiceKm: 20000,
+        insuranceExpiry: "2027-05-10",
+        inspectionExpiry: "2027-01-20",
+        maxCapacityKg: 800,
+        fuelLogs: [
+            { date: "2026-04-13", liters: 40, costEgp: 3040, odometer: 14900, supplier: "Fuel Hub East" },
+        ],
+        parts: [
+            { name: "Engine Oil", category: "Oils & Fluids", installedDate: "2026-03-20", lifespanKm: 5000, usedPct: 5 },
+            { name: "Air Filter", category: "Filters", installedDate: "2026-02-01", lifespanKm: 15000, usedPct: 10 },
+        ],
+        maintenanceHistory: [
+            { id: "WO-2836", type: "Routine", mechanic: "Ahmed Sayed", status: "Closed", repairCostEgp: 900, opened: "2026-04-07", closed: "2026-04-09" },
+        ],
+    },
+];

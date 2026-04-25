@@ -16,6 +16,9 @@ function populateVehicles() {
         opt.textContent = `${v.plate} — ${v.category} — ${v.model} (${v.status})`;
         sel.appendChild(opt);
     });
+    // Pre-select vehicle if passed via query string (e.g. from CTV details page)
+    const preselect = new URLSearchParams(window.location.search).get("vehicle");
+    if (preselect) sel.value = preselect;
 }
 
 // ─── Maintenance type card toggle ─────────────────────────────────────────────

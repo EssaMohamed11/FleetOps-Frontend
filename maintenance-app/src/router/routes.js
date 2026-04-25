@@ -110,6 +110,16 @@ export const routes = [
         },
     },
     {
+        path: "/cost-to-value/details",
+        title: "Vehicle CTV Details",
+        navTitle: "Cost-to-Value",
+        view: {
+            html: "/src/views/cost-to-value/details/view.html",
+            css: "/src/views/cost-to-value/details/view.css",
+            js: "/src/views/cost-to-value/details/view.js",
+        },
+    },
+    {
         path: "/notifications",
         title: "Notifications",
         navTitle: "Notifications",
