@@ -1,0 +1,144 @@
+<section class="view-page ctvd-page">
+
+    <!-- Back nav -->
+    <a class="ctvd-back" href="/cost-to-value" data-link>← Back to Vehicles</a>
+
+    <!-- Loading state -->
+    <div class="ctvd-loading" id="ctvd-loading">Loading vehicle data…</div>
+
+    <!-- Main content (hidden until loaded) -->
+    <div class="ctvd-content" id="ctvd-content" hidden>
+
+        <!-- Page header -->
+        <div class="ctvd-page-header">
+            <div class="ctvd-page-header__left">
+                <div class="ctvd-page-header__title-row">
+                    <h1 class="ctvd-plate" id="ctvd-plate">—</h1>
+                    <span class="ctvd-type-badge" id="ctvd-type-badge">—</span>
+                    <span class="ctvd-status-badge" id="ctvd-status-badge">—</span>
+                </div>
+                <p class="ctvd-meta" id="ctvd-meta">—</p>
+            </div>
+            <button class="ctvd-create-wo-btn" id="ctvd-create-wo-btn">
+                + Create Work Order
+            </button>
+        </div>
+
+        <!-- Stats grid -->
+        <div class="ctvd-stats-grid">
+            <article class="ctvd-stat-card" id="ctvd-stat-odometer">
+                <span class="ctvd-stat-card__label">ODOMETER</span>
+                <strong class="ctvd-stat-card__value" id="ctvd-odometer">—</strong>
+                <span class="ctvd-stat-card__sub">Current reading</span>
+            </article>
+            <article class="ctvd-stat-card" id="ctvd-stat-next-service">
+                <span class="ctvd-stat-card__label">NEXT SERVICE DUE</span>
+                <strong class="ctvd-stat-card__value" id="ctvd-next-service">—</strong>
+                <span class="ctvd-stat-card__sub" id="ctvd-next-service-sub">—</span>
+            </article>
+            <article class="ctvd-stat-card" id="ctvd-stat-insurance">
+                <span class="ctvd-stat-card__label">INSURANCE EXPIRY</span>
+                <strong class="ctvd-stat-card__value" id="ctvd-insurance">—</strong>
+                <span class="ctvd-stat-card__sub" id="ctvd-insurance-sub">—</span>
+            </article>
+            <article class="ctvd-stat-card" id="ctvd-stat-inspection">
+                <span class="ctvd-stat-card__label">INSPECTION EXPIRY</span>
+                <strong class="ctvd-stat-card__value" id="ctvd-inspection">—</strong>
+                <span class="ctvd-stat-card__sub" id="ctvd-inspection-sub">—</span>
+            </article>
+            <article class="ctvd-stat-card" id="ctvd-stat-capacity">
+                <span class="ctvd-stat-card__label">MAX CAPACITY</span>
+                <strong class="ctvd-stat-card__value" id="ctvd-capacity">—</strong>
+                <span class="ctvd-stat-card__sub">40 m³ volume</span>
+            </article>
+            <article class="ctvd-stat-card" id="ctvd-stat-repair-cost">
+                <span class="ctvd-stat-card__label">TOTAL REPAIR COST</span>
+                <strong class="ctvd-stat-card__value" id="ctvd-repair-cost">—</strong>
+                <span class="ctvd-stat-card__sub">Cumulative lifetime</span>
+            </article>
+        </div>
+
+        <!-- Two-column layout: left (CTV + Parts + History) | right (Fuel Logs) -->
+        <div class="ctvd-body-grid">
+
+            <!-- Left column -->
+            <div class="ctvd-left-col">
+
+                <!-- Cost-to-Value Analysis -->
+                <article class="ctvd-card">
+                    <h2 class="ctvd-card__title">Cost-to-Value Analysis</h2>
+                    <div class="ctvd-ctv-section">
+                        <div class="ctvd-ctv-row">
+                            <div>
+                                <span class="ctvd-ctv-label">CTV RATIO</span>
+                                <strong class="ctvd-ctv-ratio" id="ctvd-ctv-ratio">—</strong>
+                            </div>
+                            <div class="ctvd-ctv-status-wrap">
+                                <span class="ctvd-ctv-status-label">STATUS</span>
+                                <span class="ctvd-ctv-status" id="ctvd-ctv-status">—</span>
+                            </div>
+                        </div>
+
+                        <!-- Progress bar -->
+                        <div class="ctvd-ctv-bar-wrap">
+                            <div class="ctvd-ctv-bar" id="ctvd-ctv-bar">
+                                <div class="ctvd-ctv-bar__fill" id="ctvd-ctv-bar-fill"></div>
+                                <div class="ctvd-ctv-bar__marker ctvd-ctv-bar__marker--retire" id="ctvd-ctv-marker-retire"></div>
+                                <div class="ctvd-ctv-bar__marker ctvd-ctv-bar__marker--monitor" id="ctvd-ctv-marker-monitor"></div>
+                            </div>
+                            <div class="ctvd-ctv-bar-labels">
+                                <span>0%</span>
+                                <span id="ctvd-ctv-threshold-label">40% threshold</span>
+                                <span>100%</span>
+                            </div>
+                        </div>
+
+                        <!-- Alert message -->
+                        <div class="ctvd-ctv-alert" id="ctvd-ctv-alert" hidden>
+                            <span class="ctvd-ctv-alert__icon">⚠</span>
+                            <span id="ctvd-ctv-alert-text">—</span>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Part Replacement Lifecycle -->
+                <article class="ctvd-card">
+                    <h2 class="ctvd-card__title">Part Replacement Lifecycle</h2>
+                    <div class="ctvd-parts-list" id="ctvd-parts-list"></div>
+                </article>
+
+                <!-- Maintenance History -->
+                <article class="ctvd-card">
+                    <h2 class="ctvd-card__title">Maintenance History</h2>
+                    <div class="ctvd-history-wrap">
+                        <table class="ctvd-history-table">
+                            <thead>
+                                <tr>
+                                    <th>WO ID</th>
+                                    <th>Type</th>
+                                    <th>Mechanic</th>
+                                    <th>Status</th>
+                                    <th>Repair Cost</th>
+                                    <th>Opened</th>
+                                    <th>Closed</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ctvd-history-body"></tbody>
+                        </table>
+                    </div>
+                </article>
+
+            </div>
+
+            <!-- Right column -->
+            <div class="ctvd-right-col">
+                <article class="ctvd-card">
+                    <h2 class="ctvd-card__title">Recent Fuel Logs</h2>
+                    <div class="ctvd-fuel-list" id="ctvd-fuel-list"></div>
+                </article>
+            </div>
+
+        </div>
+    </div>
+
+</section>

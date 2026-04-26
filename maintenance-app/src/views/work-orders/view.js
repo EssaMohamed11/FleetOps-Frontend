@@ -99,7 +99,7 @@ function renderTable() {
     tbody.innerHTML = pageRows.map((o, idx) => {
         const isNew = o._source === "local" || o._source === "remote";
         return `
-        <tr${isNew && o._source === "local" ? ' style="background:rgba(244,102,57,0.04)"' : ''}>
+        <tr${isNew && o._source === "local" ? ' style="background:rgba(231, 171, 153, 0.04)"' : ''}>
             <td class="wo-td wo-td--check"><input type="checkbox" aria-label="Select ${o.id}" /></td>
             <td class="wo-td wo-td--id">${o.id}</td>
             <td class="wo-td">${o.vehicle}</td>

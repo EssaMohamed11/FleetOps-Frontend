@@ -1,15 +1,83 @@
-﻿<section class="view-page cost-to-value-page stack">
-    <section class="card stack">
-        <span class="chip neutral">Maintenance Module</span>
-        <h1 class="heading-lg">Cost-to-Value</h1>
-        <p>Compare maintenance spend against uptime value to support budget decisions.</p>
-    </section>
+﻿<section class="view-page ctv-page">
 
-    <section class="card stack">
-        <h2 class="heading-md">Quick Notes</h2>
-        <p>
-            This page is ready as an independent route and can now be connected
-            to live API data and business actions.
-        </p>
-    </section>
+    <!-- Header -->
+    <div class="ctv-header">
+        <div>
+            <h1 class="ctv-header__title">Cost-to-Value Analysis</h1>
+            <p class="ctv-header__subtitle">Compare cumulative repair costs against vehicle market value to guide retirement decisions</p>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="ctv-summary-grid" id="ctv-summary-grid">
+        <article class="ctv-summary-card ctv-summary-card--safe">
+            <div class="ctv-summary-card__icon">✓</div>
+            <div class="ctv-summary-card__body">
+                <strong class="ctv-summary-card__count" id="ctv-count-safe">—</strong>
+                <span class="ctv-summary-card__label">Safe (&lt; 25%)</span>
+            </div>
+        </article>
+        <article class="ctv-summary-card ctv-summary-card--monitor">
+            <div class="ctv-summary-card__icon">⚠</div>
+            <div class="ctv-summary-card__body">
+                <strong class="ctv-summary-card__count" id="ctv-count-monitor">—</strong>
+                <span class="ctv-summary-card__label">Monitor (25–40%)</span>
+            </div>
+        </article>
+        <article class="ctv-summary-card ctv-summary-card--retire">
+            <div class="ctv-summary-card__icon">⚠</div>
+            <div class="ctv-summary-card__body">
+                <strong class="ctv-summary-card__count" id="ctv-count-retire">—</strong>
+                <span class="ctv-summary-card__label">Retirement Recommended (&gt; 40%)</span>
+            </div>
+        </article>
+    </div>
+
+    <!-- Chart Card -->
+    <article class="ctv-chart-card">
+        <div class="ctv-chart-card__header">
+            <h2>Cost-to-Value Ratio by Vehicle (%)</h2>
+        </div>
+
+        <div class="ctv-chart-tooltip" id="ctv-chart-tooltip">
+            <strong class="ctv-chart-tooltip__title" id="ctv-tooltip-vehicle"></strong>
+            <span class="ctv-chart-tooltip__value" id="ctv-tooltip-ratio"></span>
+            <span class="ctv-chart-tooltip__risk" id="ctv-tooltip-risk"></span>
+        </div>
+
+        <div class="ctv-chart" id="ctv-chart">
+            <div class="ctv-chart__grid" id="ctv-chart-grid"></div>
+            <div class="ctv-chart__plot" id="ctv-chart-plot">
+                <div class="ctv-chart__threshold-line ctv-chart__threshold-line--retire" id="ctv-line-retire">
+                    <span class="ctv-chart__threshold-label">40</span>
+                </div>
+                <div class="ctv-chart__threshold-line ctv-chart__threshold-line--monitor" id="ctv-line-monitor">
+                    <span class="ctv-chart__threshold-label">25</span>
+                </div>
+                <div class="ctv-chart__bars" id="ctv-chart-bars"></div>
+            </div>
+        </div>
+    </article>
+
+    <!-- Table Card -->
+    <article class="ctv-table-card">
+        <div class="ctv-table-wrap">
+            <table class="ctv-table" id="ctv-table">
+                <thead>
+                    <tr>
+                        <th>Vehicle</th>
+                        <th>Type</th>
+                        <th>Market Value</th>
+                        <th>Total Repair Cost</th>
+                        <th>CTV Ratio</th>
+                        <th>Risk Level</th>
+                        <th>Last Major Repair</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="ctv-table-body"></tbody>
+            </table>
+        </div>
+    </article>
+
 </section>

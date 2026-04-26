@@ -1,15 +1,255 @@
-﻿<section class="view-page fuel-efficiency-page stack">
-    <section class="card stack">
-        <span class="chip neutral">Maintenance Module</span>
-        <h1 class="heading-lg">Fuel & Efficiency</h1>
-        <p>Watch fuel consumption trends and detect usage anomalies by vehicle group.</p>
+<section class="view-page fuel-page">
+    <section class="fuel-page__header">
+        <div>
+            <h1 class="fuel-page__title">Fuel &amp; Efficiency</h1>
+            <p class="fuel-page__subtitle">
+                Monitor fuel consumption and detect discrepancies
+            </p>
+        </div>
+
+        <div class="fuel-page__filters">
+            <label class="fuel-page__filter" for="fuel-range-filter">
+                <select id="fuel-range-filter"></select>
+            </label>
+
+            <label
+                class="fuel-page__filter fuel-page__filter--custom"
+                id="fuel-custom-period-wrap"
+                for="fuel-custom-period-filter"
+                hidden
+            >
+                <select id="fuel-custom-period-filter"></select>
+            </label>
+        </div>
     </section>
 
-    <section class="card stack">
-        <h2 class="heading-md">Quick Notes</h2>
-        <p>
-            This page is ready as an independent route and can now be connected
-            to live API data and business actions.
-        </p>
+    <section class="fuel-tabs" aria-label="Fuel views">
+        <button
+            type="button"
+            class="fuel-tab is-active"
+            id="fuel-tab-audit"
+            data-tab="audit"
+        >
+            Fuel Expense Audit
+        </button>
+        <button
+            type="button"
+            class="fuel-tab"
+            id="fuel-tab-comparator"
+            data-tab="comparator"
+        >
+            Fuel Efficiency Comparator
+        </button>
+    </section>
+
+    <section
+        class="fuel-alert"
+        id="fuel-flag-alert"
+        role="status"
+        aria-live="polite"
+    ></section>
+
+    <section class="fuel-toolbar">
+        <div class="fuel-toolbar__meta">
+            <span id="fuel-record-count">0 vehicles tracked</span>
+        </div>
+        <div class="fuel-toolbar__actions">
+            <button type="button" class="fuel-btn fuel-btn--primary" id="fuel-add-invoice-btn">
+                <span>+</span>
+                Add Fuel Invoice
+            </button>
+            <button type="button" class="fuel-btn fuel-btn--ghost" id="fuel-export-btn">
+                Export CSV
+            </button>
+        </div>
+    </section>
+
+    <section class="fuel-panel is-active" id="fuel-audit-panel" data-panel="audit">
+        <div class="fuel-table-card">
+            <div class="fuel-table-wrap">
+                <table class="fuel-table" id="fuel-audit-table">
+                    <thead>
+                        <tr>
+                            <th>Vehicle</th>
+                            <th>Period</th>
+                            <th>GPS Distance</th>
+                            <th>Expected Fuel</th>
+                            <th>Actual Fuel</th>
+                            <th>Discrepancy %</th>
+                            <th>Flag</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fuel-audit-body"></tbody>
+                </table>
+
+                <div class="fuel-empty-state" id="fuel-audit-empty" hidden>
+                    <h3>No fuel records for this period</h3>
+                    <p>Try another period or add a new fuel invoice.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="fuel-panel" id="fuel-comparator-panel" data-panel="comparator">
+        <div class="fuel-summary-grid">
+            <article class="fuel-summary-card">
+                <span class="fuel-summary-card__label">Fleet Average</span>
+                <strong class="fuel-summary-card__value fuel-summary-card__value--fleet" id="fleet-average-value">
+                    0 km/L
+                </strong>
+            </article>
+            <article class="fuel-summary-card">
+                <span class="fuel-summary-card__label">Most Efficient</span>
+                <strong class="fuel-summary-card__value fuel-summary-card__value--best" id="fuel-best-value">
+                    —
+                </strong>
+            </article>
+            <article class="fuel-summary-card">
+                <span class="fuel-summary-card__label">Least Efficient</span>
+                <strong class="fuel-summary-card__value fuel-summary-card__value--worst" id="fuel-worst-value">
+                    —
+                </strong>
+            </article>
+        </div>
+
+        <article class="fuel-chart-card">
+            <div class="fuel-chart-card__header">
+                <h2>Fuel Efficiency by Vehicle (km/L)</h2>
+            </div>
+
+            <div class="fuel-chart-tooltip" id="fuel-chart-tooltip">
+                <strong class="fuel-chart-tooltip__title" id="fuel-tooltip-vehicle"></strong>
+                <span class="fuel-chart-tooltip__value" id="fuel-tooltip-efficiency"></span>
+            </div>
+
+            <div class="fuel-chart" id="fuel-efficiency-chart">
+                <div class="fuel-chart__grid">
+                    <span>16</span>
+                    <span>12</span>
+                    <span>8</span>
+                    <span>4</span>
+                    <span>0</span>
+                </div>
+                <div class="fuel-chart__plot">
+                    <div class="fuel-chart__avg-line" id="fuel-chart-average-line">
+                        <span class="fuel-chart__avg-label">Avg</span>
+                    </div>
+                    <div class="fuel-chart__bars" id="fuel-chart-bars"></div>
+                </div>
+            </div>
+        </article>
+
+        <div class="fuel-table-card">
+            <div class="fuel-table-wrap">
+                <table class="fuel-table fuel-table--comparator" id="fuel-comparator-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Vehicle</th>
+                            <th>Type</th>
+                            <th>Avg Efficiency</th>
+                            <th>vs Fleet Avg</th>
+                            <th>Trend</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fuel-comparator-body"></tbody>
+                </table>
+
+                <div class="fuel-empty-state" id="fuel-comparator-empty" hidden>
+                    <h3>No efficiency records for this period</h3>
+                    <p>Once fuel records exist, comparisons will appear here.</p>
+                </div>
+            </div>
+        </div>
     </section>
 </section>
+
+<div class="fuel-modal" id="fuel-invoice-modal" aria-hidden="true">
+    <div class="fuel-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="fuel-invoice-title">
+        <button type="button" class="fuel-modal__close" id="fuel-close-modal-btn" aria-label="Close">
+            x
+        </button>
+
+        <div class="fuel-modal__header">
+            <h2 id="fuel-invoice-title">Add Fuel Invoice</h2>
+        </div>
+
+        <form id="fuel-invoice-form" class="fuel-form">
+            <div class="fuel-form__field">
+                <label for="fuel-vehicle-plate">Vehicle Plate</label>
+                <input
+                    id="fuel-vehicle-plate"
+                    name="vehiclePlate"
+                    type="text"
+                    placeholder="e.g., EGY-1234"
+                    required
+                />
+            </div>
+
+            <div class="fuel-form__field">
+                <label for="fuel-fill-date">Date of Fill-up</label>
+                <input id="fuel-fill-date" name="fillDate" type="date" required />
+            </div>
+
+            <div class="fuel-form__field">
+                <label for="fuel-liters-filled">Liters Filled</label>
+                <input
+                    id="fuel-liters-filled"
+                    name="litersFilled"
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    placeholder="0"
+                    required
+                />
+            </div>
+
+            <div class="fuel-form__field">
+                <label for="fuel-total-cost">Total Cost (EGP)</label>
+                <input
+                    id="fuel-total-cost"
+                    name="totalCostEgp"
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    placeholder="0"
+                    required
+                />
+            </div>
+
+            <div class="fuel-form__field">
+                <label for="fuel-odometer">Odometer at Fill-up (km)</label>
+                <input
+                    id="fuel-odometer"
+                    name="odometerKm"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="0"
+                    required
+                />
+            </div>
+
+            <div class="fuel-form__field">
+                <label for="fuel-supplier">Supplier / Station (optional)</label>
+                <input
+                    id="fuel-supplier"
+                    name="supplier"
+                    type="text"
+                    placeholder="Station name"
+                />
+            </div>
+
+            <p class="fuel-form__message" id="fuel-form-message" hidden></p>
+
+            <div class="fuel-form__actions">
+                <button type="submit" class="fuel-btn fuel-btn--primary fuel-btn--stretch" id="fuel-save-invoice-btn">
+                    Save Invoice
+                </button>
+                <button type="button" class="fuel-btn fuel-btn--ghost" id="fuel-cancel-modal-btn">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

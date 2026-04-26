@@ -1,13 +1,38 @@
-import api from "/shared/api-handler.js";
 import WorkOrdersApi from "./work-orders.js";
-
-api.setBaseURL("http://localhost:3000");
 
 const ASSIGNMENT_ENDPOINTS = [
     "/assignments",
     "/work-orders/assign",
     "/work-orders/assignments",
 ];
+
+let cachedApiClient;
+
+async function getApiClient() {
+    if (cachedApiClient !== undefined) {
+        return cachedApiClient;
+    }
+
+    const candidatePaths = [
+        "/shared/api-handler.js",
+        "/Server/scripts/api-handler.js",
+    ];
+
+    for (const path of candidatePaths) {
+        try {
+            const module = await import(path);
+            const apiClient = module.default;
+            apiClient.setBaseURL("http://localhost:3000");
+            cachedApiClient = apiClient;
+            return cachedApiClient;
+        } catch (error) {
+            // Continue to the next candidate path and fall back to local data if needed.
+        }
+    }
+
+    cachedApiClient = null;
+    return cachedApiClient;
+}
 
 function formatDateLabel(value) {
     if (!value) {
@@ -170,7 +195,13 @@ function isUnassignedOrder(order) {
 
 async function getUnassignedWorkOrders() {
     try {
-        const response = await api.get("/work-orders/unassigned");
+        const apiClient = await getApiClient();
+
+        if (!apiClient) {
+            throw new Error("API handler unavailable.");
+        }
+
+        const response = await apiClient.get("/work-orders/unassigned");
         const items = Array.isArray(response.data)
             ? response.data
             : response.data?.items ?? [];
@@ -185,7 +216,13 @@ async function getUnassignedWorkOrders() {
 
 async function getMechanicRoster() {
     try {
-        const response = await api.get("/mechanics/roster");
+        const apiClient = await getApiClient();
+
+        if (!apiClient) {
+            throw new Error("API handler unavailable.");
+        }
+
+        const response = await apiClient.get("/mechanics/roster");
         const items = Array.isArray(response.data)
             ? response.data
             : response.data?.items ?? [];
@@ -204,16 +241,19 @@ async function getMechanicRoster() {
 async function assignWorkOrder(workOrderId, mechanicId) {
     const payload = { workOrderId, mechanicId };
     let lastError = null;
+    const apiClient = await getApiClient();
 
-    for (const endpoint of ASSIGNMENT_ENDPOINTS) {
-        try {
-            const response = await api.post(endpoint, payload);
-            return response.data;
-        } catch (error) {
-            lastError = error;
+    if (apiClient) {
+        for (const endpoint of ASSIGNMENT_ENDPOINTS) {
+            try {
+                const response = await apiClient.post(endpoint, payload);
+                return response.data;
+            } catch (error) {
+                lastError = error;
 
-            if (error?.status && ![404, 405].includes(error.status)) {
-                throw error;
+                if (error?.status && ![404, 405].includes(error.status)) {
+                    throw error;
+                }
             }
         }
     }
