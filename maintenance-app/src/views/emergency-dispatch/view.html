@@ -42,4 +42,128 @@
             </div>  
         </aside>
     </div>
+
+    <!-- Dispatch Confirmation Modal -->
+    <div id="dispatch-modal" class="modal-overlay hidden">
+        <div class="modal-content card stack">
+            <div class="modal-header">
+                <h3 class="heading-md">Confirm Dispatch</h3>
+                <button id="close-modal-btn" class="icon-btn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to dispatch a mechanic to this incident?</p>
+            </div>
+            <div class="modal-actions">
+                <button id="cancel-dispatch-btn" class="btn btn-secondary">Cancel</button>
+                <button id="confirm-dispatch-btn" class="btn btn-primary">Dispatch Mechanic</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates -->
+    <template id="empty-incidents-template">
+        <div class="empty-state-placeholder">
+            <i data-lucide="check-circle" class="icon-success"></i>
+            <p class="text-muted">No active incidents</p>
+        </div>
+    </template>
+
+    <template id="incident-item-template">
+        <div class="incident-item card" data-id="">
+            <div class="incident-marker"></div>
+            <div class="incident-header">
+                <span class="incident-id"></span>
+                <span class="status-pill pending"></span>
+            </div>
+            <div class="incident-vehicle"></div>
+            <div class="incident-time">
+                <i data-lucide="clock"></i> <span class="time-ago"></span>
+            </div>
+        </div>
+    </template>
+
+    <template id="empty-incident-details-template">
+        <div class="empty-state-placeholder">
+            <p class="text-muted">Select an incident to view details</p>
+        </div>
+    </template>
+
+    <template id="incident-details-template">
+        <div class="detail-header">
+            <div class="title-with-icon">
+                <i data-lucide="alert-triangle" class="icon-emergency"></i>
+                <h3 class="heading-md" style="color: var(--color-danger);">Incident Details</h3>
+            </div>
+            <span class="status-pill pending incident-status"></span>
+        </div>
+        
+        <div class="incident-meta">
+            <div class="info-row">
+                <i data-lucide="user"></i>
+                <div>
+                    <strong class="driver-name"></strong>
+                    <div class="text-xs text-muted driver-phone"></div>
+                </div>
+            </div>
+            
+            <div class="info-row">
+                <i data-lucide="truck"></i>
+                <div>
+                    <strong class="vehicle-plate"></strong>
+                    <div class="text-xs text-muted vehicle-details"></div>
+                </div>
+            </div>
+
+            <div class="info-row">
+                <i data-lucide="map-pin"></i>
+                <div>
+                    <strong class="location-address"></strong>
+                    <div class="text-xs text-muted location-gps"></div>
+                </div>
+            </div>
+            
+            <div class="info-row">
+                <i data-lucide="clock"></i>
+                <div>
+                    <strong>Reported</strong>
+                    <div class="text-xs text-muted reported-time"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="detail-group">
+            <span class="group-label">ISSUE DESCRIPTION</span>
+            <p class="issue-text"></p>
+        </div>
+
+        <div class="map-placeholder card">
+            <div class="map-overlay">
+                <i data-lucide="map"></i>
+                <span>Map view unavailable</span>
+            </div>
+        </div>
+    </template>
+
+    <template id="mechanic-card-template">
+        <div class="mechanic-card">
+            <div class="mechanic-header">
+                <div class="mechanic-avatar"></div>
+                <div class="mechanic-info">
+                    <div class="name-status">
+                        <strong class="mechanic-name"></strong>
+                        <span class="badge mechanic-status"></span>
+                    </div>
+                    <p class="text-muted mechanic-specialty-phone"></p>
+                </div>
+            </div>
+            
+            <div class="mechanic-meta">
+                <span><i data-lucide="map-pin"></i> <span class="mechanic-distance"></span></span>
+                <span><i data-lucide="clock"></i> <span class="mechanic-eta"></span></span>
+            </div>
+
+            <button class="btn btn-primary dispatch-btn">Dispatch Mechanic</button>
+        </div>
+    </template>
+
 </section>
