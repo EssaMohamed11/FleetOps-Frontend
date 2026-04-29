@@ -27,9 +27,9 @@ const KPI_DATA = {
 
 const MONTHLY_CHART_DATA = {
   labels: ["Nov", "Dec", "Jan", "Feb", "Mar", "Apr"],
-  revenue: [420000, 510000, 390000, 480000, 530000, 618500],
-  costs:   [262000, 305000, 248000, 291000, 317000, 374200],
-  profit:  [158000, 205000, 142000, 189000, 213000, 244300],
+  revenue: [420000, 510000, 390000, 320000, 530000, 618500],
+  costs:   [262000, 305000, 248000, 380000, 317000, 374200],
+  profit:  [158000, 205000, 142000, -60000, 213000, 244300],
 };
 
 const FLEET_STATUS = [
@@ -98,4 +98,44 @@ const TABLE_DATA = [
   { date:"2026-03-29", vehicle:"VH-4411", driver:"Mona R.",    distance:385, fuel:41, idle:"0h 38m", eff:86, status:"Optimal"    },
 ];
 
-export { KPI_DATA, MONTHLY_CHART_DATA, FLEET_STATUS, DRIVER_PERF, AVATAR_COLORS, TABLE_DATA };
+const CO2_REPORT_DATA = [
+  { vehicle: "VH-3821", type: "Truck", emissions: "1.2", reduction: 5, status: "Good" },
+  { vehicle: "VH-5503", type: "Van", emissions: "1.8", reduction: -2, status: "Needs Improvement" },
+  { vehicle: "VH-7742", type: "Truck", emissions: "0.9", reduction: 12, status: "Excellent" },
+  { vehicle: "VH-1190", type: "Van", emissions: "2.1", reduction: -8, status: "Poor" },
+  { vehicle: "VH-4455", type: "Truck", emissions: "1.5", reduction: 1, status: "Good" }
+];
+
+const FUEL_AUDIT_DATA = [
+  { vehicle: "TRK-042", gpsDistance: "3,200 km", expected: "421 L", actual: "420 L", discrepancy: "0.2%", status: "OK" },
+  { vehicle: "TRK-015", gpsDistance: "2,800 km", expected: "311 L", actual: "310 L", discrepancy: "0.3%", status: "OK" },
+  { vehicle: "TRK-007", gpsDistance: "2,100 km", expected: "350 L", actual: "410 L", discrepancy: "17.1%", status: "Flagged", subtext: "Possible fuel theft or leak — review required" },
+  { vehicle: "TRK-031", gpsDistance: "2,400 km", expected: "270 L", actual: "275 L", discrepancy: "1.9%", status: "OK" }
+];
+
+const MAINTENANCE_COST_DATA = [
+  { vehicle: "VH-5503", service: "Oil Change & Filters", date: "2024-04-12", parts: 150, labor: 100, total: 250, status: "Completed" },
+  { vehicle: "VH-1190", service: "Brake Pad Replacement", date: "2024-04-10", parts: 300, labor: 150, total: 450, status: "Completed" },
+  { vehicle: "VH-4455", service: "Engine Diagnostics", date: "2024-04-05", parts: 0, labor: 200, total: 200, status: "Pending" },
+  { vehicle: "VH-7742", service: "Transmission Fluid", date: "2024-04-01", parts: 80, labor: 120, total: 200, status: "Completed" },
+  { vehicle: "VH-3821", service: "Tire Rotation", date: "2024-03-28", parts: 0, labor: 80, total: 80, status: "Completed" }
+];
+
+const MAINTENANCE_SUMMARY_DATA = {
+  total: 42800,
+  preventive: 28200,
+  reactive: 14600,
+  currency: 'SAR'
+};
+
+export {
+  KPI_DATA,
+  MONTHLY_CHART_DATA,
+  FLEET_STATUS,
+  DRIVER_PERF,
+  TABLE_DATA,
+  CO2_REPORT_DATA,
+  FUEL_AUDIT_DATA,
+  MAINTENANCE_COST_DATA,
+  MAINTENANCE_SUMMARY_DATA
+};
