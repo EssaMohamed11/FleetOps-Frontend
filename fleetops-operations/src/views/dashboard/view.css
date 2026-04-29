@@ -99,6 +99,10 @@
   border: none;
   padding: 10px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
 }
 
 .btn-view-all:hover {
