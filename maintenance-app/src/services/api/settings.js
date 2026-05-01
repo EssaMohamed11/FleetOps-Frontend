@@ -14,8 +14,8 @@ export async function getSettings() {
     await delay(100);
     const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (!stored) {
-        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(defaultSettingsMockData));
-        return JSON.parse(JSON.stringify(defaultSettingsMockData));
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settingsMockData));
+        return JSON.parse(JSON.stringify(settingsMockData));
     }
     return JSON.parse(stored);
 }

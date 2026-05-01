@@ -65,7 +65,8 @@ const initialMockData = [
 ];
 
 // Fallback for older synchronous calls
-export let auditMockData = [...initialMockData];
+let auditMockData = [...initialMockData];
+export { auditMockData };
 
 const delay = (ms = 100) => new Promise(resolve => setTimeout(resolve, ms));
 

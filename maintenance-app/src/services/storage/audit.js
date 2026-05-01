@@ -61,3 +61,5 @@ export const initialAuditMockData = [
         newValue: { orderId: "ORD-9092", items: 450, priority: "High" }
     }
 ];
+let auditMockData = [...initialAuditMockData];
+export { auditMockData };
