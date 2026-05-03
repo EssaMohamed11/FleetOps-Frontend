@@ -1,12 +1,7 @@
 import api from "/shared/api-handler.js";
 
 // التوجيه لباك إند لارافل
-api.setBaseURL("http://localhost:8000/api/v1");
-
-const getHeaders = () => ({
-    'Accept': 'application/json',
-    'Authorization': `Bearer ${localStorage.getItem('token')}`
-});
+api.setBaseURL("http://localhost:8000");
 
 // الدالة دي مبقاش ليها لازمة في الفرونت لأن الـ Backend بيسجل أوتوماتيك
 // بس هنسيبها ترجع success عشان لو في كود في الفرونت بيناديها ميكراشش
@@ -18,47 +13,53 @@ export async function logAuditAction(userName, userRole, action, entity, entityI
 // API: GET /api/v1/audit/logs
 export async function getAuditLogs(filters = {}) {
     try {
-        // تجميع فلاتر البحث من الشاشة
-        const queryParams = new URLSearchParams();
-        if (filters.user) queryParams.append('user_id', filters.user);
-        if (filters.entity && filters.entity !== 'All Entities') queryParams.append('entity_type', filters.entity);
-        if (filters.action && filters.action !== 'All Actions') queryParams.append('action', filters.action);
-        if (filters.dateFrom) queryParams.append('date_from', filters.dateFrom);
-        if (filters.dateTo) queryParams.append('date_to', filters.dateTo);
-        if (filters.search) queryParams.append('search', filters.search);
+        // تجميع فلاتر البحث بشكل مباشر كـ Object
+        const params = {};
+        if (filters.user) params.user_id = filters.user;
+        if (filters.entity && filters.entity !== 'All Entities') params.entity_type = filters.entity;
+        if (filters.action && filters.action !== 'All Actions') params.action = filters.action;
+        if (filters.dateFrom) params.date_from = filters.dateFrom;
+        if (filters.dateTo) params.date_to = filters.dateTo;
+        if (filters.search) params.search = filters.search;
 
-        const response = await fetch(`http://localhost:8000/api/v1/audit/system-logs?${queryParams.toString()}`, {
-            method: 'GET',
-            headers: getHeaders()
-        });
+        // استدعاء الـ API باستخدام الـ handler الجديد
+        const { data } = await api.get('/api/v1/audit/system-logs', { params });
 
-        const result = await response.json();
+        if (data.success) {
+            return data.data.data.map(log => {
+                
+                let ctx = log.context;
+                if (typeof ctx === 'string') {
+                    try { ctx = JSON.parse(ctx); } catch (e) { ctx = {}; }
+                }
+
+                const methodMap = {
+                    'POST': 'Created',
+                    'PUT': 'Updated',
+                    'PATCH': 'Updated',
+                    'DELETE': 'Deleted'
+                };
+
+                const method = ctx?.method || '';
+                const finalAction = methodMap[method.toUpperCase()] || log.action || log.level?.toUpperCase() || 'Updated';
+
+                return {
+                    id: log.log_id,
+                    userId: log.user_id || 'System',
+                    userRole: log.channel,
+                    entity: log.module,
+                    action: finalAction, 
+                    timestamp: log.created_at,
+                    details: log.message,
+                    oldValue: null,
+                    newValue: ctx
+                };
+            });
+        }
         
-        if (result.success) {
-    return result.data.data.map(log => {
-        // تحويل الميثود لـ Action يفهمه الـ CSS للألوان
-        const methodMap = {
-            'POST': 'Created',
-            'PUT': 'Updated',
-            'PATCH': 'Updated',
-            'DELETE': 'Deleted'
-        };
-        return {
-            id: log.log_id,
-            userId: log.user_id || 'System',
-            userRole: log.channel,
-            entity: log.module,
-            // إذا كان الميثود موجوداً نستخدم الخريطة، وإلا نستخدم القيمة الأصلية
-            action: methodMap[log.context?.method] || log.action || 'Updated', 
-            timestamp: log.created_at,
-            details: log.message,
-            oldValue: null,
-            newValue: log.context
-        };
-    });
-}
+        return [];
     } catch (error) {
-        console.error("Failed to fetch audit logs:", error);
+        console.error("Failed to fetch audit logs:", error.data?.message || error.message);
         return [];
     }
 }
