@@ -5,6 +5,14 @@
 import { routePlanningState } from "../utils/state-manager.js";
 import { createElement } from "../utils/helpers.js";
 
+function clearStepCompletionFrom(state, startStep) {
+    const next = { ...state.stepComplete };
+    for (let step = startStep; step <= 9; step += 1) {
+        delete next[step];
+    }
+    return next;
+}
+
 export function renderStep8(container) {
     const state = routePlanningState.getState();
     const vehicles = state.vehicles || [];
@@ -72,6 +80,17 @@ function renderDrivers(activeCluster, rc, vehicle) {
     const drivers = state.drivers || [];
     const container = document.getElementById("drivers-list");
     if (!container) return;
+    // Clear existing drivers list to avoid duplicate DOM nodes
+    container.innerHTML = "";
+
+    try {
+        console.log(
+            "[renderDrivers] zone:",
+            activeCluster.zone,
+            "drivers:",
+            drivers.length,
+        );
+    } catch (e) {}
 
     const usedDrivers = new Set(
         state.clusters
@@ -81,9 +100,23 @@ function renderDrivers(activeCluster, rc, vehicle) {
     );
 
     drivers.forEach((driver) => {
-        const licenseMismatch =
-            (vehicle.type === "Heavy" || vehicle.type === "Refrigerated") &&
-            driver.license === "Light";
+        function isLicenseCompatible(vehicleTypeRaw, driverLicenseRaw) {
+            const vt = (vehicleTypeRaw || "").toLowerCase();
+            const dl = (driverLicenseRaw || "").toLowerCase();
+            const map = {
+                light: ["light"],
+                heavy: ["heavy"],
+                refrigerated: ["refrigerated"],
+            };
+            const allowed = map[vt];
+            if (!allowed) return true;
+            return allowed.includes(dl);
+        }
+
+        const licenseMismatch = !isLicenseCompatible(
+            vehicle.type,
+            driver.license,
+        );
         const usedByOther = usedDrivers.has(driver.name);
 
         const card = createElement("label", {
@@ -114,13 +147,24 @@ function renderDrivers(activeCluster, rc, vehicle) {
         });
 
         const radio = card.querySelector('input[type="radio"]');
+
+        card.addEventListener("click", (ev) => {
+            if (licenseMismatch || usedByOther) {
+                ev.preventDefault();
+                ev.stopPropagation();
+            }
+        });
+
         radio.addEventListener("change", () => {
             const newConfigs = { ...state.routeConfigs };
             newConfigs[activeCluster.zone] = {
                 ...newConfigs[activeCluster.zone],
                 driver: driver.name,
             };
-            routePlanningState.setState({ routeConfigs: newConfigs });
+            routePlanningState.setState({
+                routeConfigs: newConfigs,
+                stepComplete: clearStepCompletionFrom(state, 9),
+            });
         });
 
         container.appendChild(card);

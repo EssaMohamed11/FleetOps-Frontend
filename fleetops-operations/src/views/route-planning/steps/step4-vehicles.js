@@ -9,6 +9,14 @@ import {
     calculateTotalVolume,
 } from "../utils/helpers.js";
 
+function clearStepCompletionFrom(state, startStep) {
+    const next = { ...state.stepComplete };
+    for (let step = startStep; step <= 9; step += 1) {
+        delete next[step];
+    }
+    return next;
+}
+
 export function renderStep4(container) {
     const state = routePlanningState.getState();
     const activeCluster = state.clusters[state.activeClusterIndex];
@@ -59,6 +67,9 @@ function renderClusterTabs(container) {
     setTimeout(() => {
         const tabsContainer = document.getElementById("cluster-tabs");
         if (tabsContainer) {
+            // Clear existing tabs
+            tabsContainer.innerHTML = "";
+
             state.clusters.forEach((cluster, index) => {
                 const rc = state.routeConfigs[cluster.zone] || {};
                 const isActive = state.activeClusterIndex === index;
@@ -107,6 +118,9 @@ function renderVehicles(container, activeCluster) {
     setTimeout(() => {
         const list = document.getElementById("vehicles-list");
         if (list) {
+            // Clear existing vehicles
+            list.innerHTML = "";
+
             vehicles.forEach((vehicle) => {
                 const weightPct = Math.round(
                     (totalWeight / vehicle.maxWeight) * 100,
@@ -166,14 +180,12 @@ function renderVehicles(container, activeCluster) {
                         ...newConfigs[activeCluster.zone],
                         vehicle: vehicle.plate,
                         capacityResult: null,
+                        optimizedStops: [],
                     };
-
-                    const newStepComplete = { ...state.stepComplete };
-                    delete newStepComplete[5];
 
                     routePlanningState.setState({
                         routeConfigs: newConfigs,
-                        stepComplete: newStepComplete,
+                        stepComplete: clearStepCompletionFrom(state, 5),
                     });
                 });
 

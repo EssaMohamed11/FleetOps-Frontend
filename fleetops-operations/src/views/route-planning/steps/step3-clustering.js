@@ -36,6 +36,24 @@ const CLUSTER_FG_COLORS = [
     "#65a30d",
 ];
 
+const LEAFLET_CSS_URL = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+const LEAFLET_JS_URL = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+
+let leafletLoadPromise = null;
+let step3MapInstance = null;
+
+function clearStepCompletionFrom(state, startStep) {
+    const next = { ...state.stepComplete };
+    for (let step = startStep; step <= 9; step += 1) {
+        delete next[step];
+    }
+    return next;
+}
+
+function isOrderSelectedInStep2(order) {
+    return order?.step2Selected !== false;
+}
+
 export async function renderStep3(container) {
     const state = routePlanningState.getState();
 
@@ -65,9 +83,25 @@ async function autoClusters() {
     routePlanningState.setState({ isProcessing: true });
 
     const state = routePlanningState.getState();
-    const clusters = await RoutePlanningAPI.createGeoClusters(
-        state.prioritizedOrders,
+    const selectedOrders = state.prioritizedOrders.filter(
+        isOrderSelectedInStep2,
     );
+
+    if (selectedOrders.length === 0) {
+        routePlanningState.setState({
+            clusters: [],
+            routeConfigs: {},
+            activeClusterIndex: 0,
+            isProcessing: false,
+            stepComplete: { ...state.stepComplete, 3: true },
+            editingCluster: null,
+            moveOrderId: null,
+            moveFromCluster: null,
+        });
+        return;
+    }
+
+    const clusters = await RoutePlanningAPI.createGeoClusters(selectedOrders);
 
     const routeConfigs = { ...state.routeConfigs };
     clusters.forEach((cluster) => {
@@ -156,6 +190,10 @@ function renderClusters(container) {
     }
 
     bindGlobalActions(container);
+
+    setTimeout(() => {
+        initializeRealMap(state);
+    }, 0);
 }
 
 function renderNewClusterPanel(state) {
@@ -214,59 +252,193 @@ function renderMoveOverlay(state) {
 }
 
 function renderMap(state) {
-    const overlays = state.clusters
-        .map((cluster, index) => {
-            const cx = 10 + (index % 4) * 22;
-            const cy = 12 + Math.floor(index / 4) * 30;
-            const blobWidth = Math.max(
-                50,
-                Math.min(cluster.orders.length * 3, 120),
-            );
-            const blobHeight = Math.max(
-                40,
-                Math.min(cluster.orders.length * 2.5, 100),
-            );
-
-            const dots = cluster.orders
-                .slice(0, 6)
-                .map((_, dotIndex) => {
-                    const offset = dotIndex % 3;
-                    const top = cy + offset * 5 - 3;
-                    const left = cx + offset * 5 - 3;
-                    return `
-                        <div style="position: absolute; width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 6px rgba(15,23,42,0.25); top: ${top}%; left: ${left}%; background: ${cluster.color};"></div>
-                    `;
-                })
-                .join("");
-
-            return `
-                <div>
-                    <div style="position: absolute; top: ${cy}%; left: ${cx}%; width: ${blobWidth}px; height: ${blobHeight}px; border-radius: 999px; opacity: 0.2; filter: blur(18px); background: ${cluster.color};"></div>
-                    ${dots}
-                    <button
-                        type="button"
-                        data-toggle-cluster-index="${index}"
-                        style="position: absolute; top: ${cy + 10}%; left: ${cx - 2}%; border: none; border-radius: 8px; padding: 6px 8px; color: #fff; background: ${CLUSTER_FG_COLORS[index % CLUSTER_FG_COLORS.length]}; font-size: 0.625rem; font-weight: 700; cursor: pointer;">
-                        ${escapeHtml(cluster.zone)} (${cluster.orders.length})
-                    </button>
-                </div>
-            `;
-        })
+    const clusterChips = state.clusters
+        .map(
+            (cluster, index) => `
+                <button
+                    type="button"
+                    data-toggle-cluster-index="${index}"
+                    style="border: none; border-radius: 8px; padding: 6px 8px; color: #fff; background: ${cluster.color}; font-size: 0.625rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <span style="width: 8px; height: 8px; border-radius: 999px; background: ${cluster.color}; box-shadow: 0 0 0 1px rgba(255,255,255,0.35);"></span>
+                    ${escapeHtml(cluster.zone)} (${cluster.orders.length})
+                </button>
+            `,
+        )
         .join("");
 
     return `
         <div class="rp-step3-map" style="background: linear-gradient(135deg, #334155 0%, #1e293b 100%); border-radius: 16px; border: 1px solid var(--color-border); height: 450px; position: relative; overflow: hidden;">
-            <svg style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.15;">
-                <defs>
-                    <pattern id="cluster-grid" width="25" height="25" patternUnits="userSpaceOnUse">
-                        <path d="M 25 0 L 0 0 0 25" fill="none" stroke="#94a3b8" stroke-width="0.3"></path>
-                    </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#cluster-grid)"></rect>
-            </svg>
-            ${overlays}
+            <div id="rp-step3-real-map" style="position: absolute; inset: 0;"></div>
+            <div style="position: absolute; top: 12px; left: 12px; right: 12px; z-index: 500; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none;">
+                <div style="pointer-events: auto; margin-left: 40px; display: flex; gap: 6px; flex-wrap: wrap;">
+                    ${clusterChips}
+                </div>
+            </div>
+            <div id="rp-step3-map-empty" style="position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 450; color: #e2e8f0; font-size: 0.75rem; background: rgba(15, 23, 42, 0.45); text-align: center; padding: 16px;">
+                No valid coordinates found in current orders.
+            </div>
         </div>
     `;
+}
+
+async function initializeRealMap(state) {
+    const mapElement = document.getElementById("rp-step3-real-map");
+    const emptyElement = document.getElementById("rp-step3-map-empty");
+    if (!mapElement) {
+        return;
+    }
+
+    if (step3MapInstance) {
+        step3MapInstance.remove();
+        step3MapInstance = null;
+    }
+
+    const clusterPoints = state.clusters
+        .map((cluster) => ({
+            zone: cluster.zone,
+            color: cluster.color,
+            points: cluster.orders
+                .map((order) => ({
+                    order,
+                    coords: getOrderCoordinates(order),
+                }))
+                .filter((entry) => entry.coords !== null),
+        }))
+        .filter((cluster) => cluster.points.length > 0);
+
+    if (clusterPoints.length === 0) {
+        if (emptyElement) {
+            emptyElement.style.display = "flex";
+        }
+        return;
+    }
+
+    if (emptyElement) {
+        emptyElement.style.display = "none";
+    }
+
+    try {
+        await loadLeafletAssets();
+    } catch (error) {
+        console.error("Failed to load map assets", error);
+        if (emptyElement) {
+            emptyElement.style.display = "flex";
+            emptyElement.textContent =
+                "Failed to load map tiles. Check internet connection.";
+        }
+        return;
+    }
+
+    const L = window.L;
+    if (!L) {
+        return;
+    }
+
+    step3MapInstance = L.map(mapElement, {
+        zoomControl: true,
+        preferCanvas: true,
+    });
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(step3MapInstance);
+
+    const bounds = [];
+
+    clusterPoints.forEach((cluster) => {
+        const markers = cluster.points.map((entry) => {
+            const [lat, lng] = entry.coords;
+            bounds.push([lat, lng]);
+
+            const marker = L.circleMarker([lat, lng], {
+                radius: 7,
+                color: "#ffffff",
+                weight: 1.5,
+                fillColor: cluster.color,
+                fillOpacity: 0.9,
+            });
+
+            marker.bindPopup(`
+                <div style="font-size: 12px; min-width: 150px;">
+                    <p style="margin: 0 0 6px 0; font-weight: 700;">${escapeHtml(cluster.zone)}</p>
+                    <p style="margin: 0 0 4px 0;">Order: ${escapeHtml(entry.order.id)}</p>
+                    <p style="margin: 0; color: #475569;">${escapeHtml(entry.order.customer)}</p>
+                </div>
+            `);
+
+            return marker;
+        });
+
+        markers.forEach((marker) => marker.addTo(step3MapInstance));
+    });
+
+    if (bounds.length === 1) {
+        step3MapInstance.setView(bounds[0], 12);
+    } else {
+        step3MapInstance.fitBounds(bounds, {
+            padding: [24, 24],
+            maxZoom: 13,
+        });
+    }
+}
+
+function getOrderCoordinates(order) {
+    const lat = Number(order?.lat ?? order?.Latitude);
+    const lng = Number(order?.lng ?? order?.Longitude);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return null;
+    }
+
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return null;
+    }
+
+    return [lat, lng];
+}
+
+function loadLeafletAssets() {
+    if (window.L) {
+        return Promise.resolve();
+    }
+
+    if (!leafletLoadPromise) {
+        leafletLoadPromise = new Promise((resolve, reject) => {
+            if (!document.querySelector(`link[href="${LEAFLET_CSS_URL}"]`)) {
+                const cssLink = document.createElement("link");
+                cssLink.rel = "stylesheet";
+                cssLink.href = LEAFLET_CSS_URL;
+                document.head.appendChild(cssLink);
+            }
+
+            const existingScript = document.querySelector(
+                `script[src="${LEAFLET_JS_URL}"]`,
+            );
+
+            if (existingScript) {
+                existingScript.addEventListener("load", () => resolve(), {
+                    once: true,
+                });
+                existingScript.addEventListener(
+                    "error",
+                    () => reject(new Error("Leaflet script failed to load")),
+                    { once: true },
+                );
+                return;
+            }
+
+            const script = document.createElement("script");
+            script.src = LEAFLET_JS_URL;
+            script.async = true;
+            script.onload = () => resolve();
+            script.onerror = () =>
+                reject(new Error("Leaflet script failed to load"));
+            document.head.appendChild(script);
+        });
+    }
+
+    return leafletLoadPromise;
 }
 
 function renderClusterCard(cluster, index, state) {
@@ -513,12 +685,12 @@ function bindGlobalActions(container) {
     if (reclusterBtn) {
         reclusterBtn.addEventListener("click", () => {
             const state = routePlanningState.getState();
-            const newStepComplete = { ...state.stepComplete };
-            delete newStepComplete[3];
 
             routePlanningState.setState({
-                stepComplete: newStepComplete,
+                stepComplete: clearStepCompletionFrom(state, 3),
                 clusters: [],
+                routeConfigs: {},
+                activeClusterIndex: 0,
                 editingCluster: null,
                 moveOrderId: null,
                 moveFromCluster: null,
@@ -574,6 +746,10 @@ function addNewCluster() {
         },
         showNewClusterModal: false,
         newClusterName: "",
+        stepComplete: {
+            ...clearStepCompletionFrom(state, 4),
+            3: true,
+        },
     });
 }
 
@@ -613,10 +789,15 @@ function moveOrderToCluster(orderId, fromClusterIndex, toClusterIndex) {
     routePlanningState.setState({
         clusters: cleanedClusters,
         routeConfigs: syncRouteConfigs(state.routeConfigs, cleanedClusters),
+        activeClusterIndex: 0,
         moveOrderId: null,
         moveFromCluster: null,
         editingCluster: null,
         clusterSearchTerm: "",
+        stepComplete: {
+            ...clearStepCompletionFrom(state, 4),
+            3: true,
+        },
     });
 }
 
@@ -639,10 +820,15 @@ function removeOrderFromCluster(orderId, clusterIndex) {
     routePlanningState.setState({
         clusters: cleanedClusters,
         routeConfigs: syncRouteConfigs(state.routeConfigs, cleanedClusters),
+        activeClusterIndex: 0,
         editingCluster: null,
         moveOrderId: null,
         moveFromCluster: null,
         clusterSearchTerm: "",
+        stepComplete: {
+            ...clearStepCompletionFrom(state, 4),
+            3: true,
+        },
     });
 }
 
@@ -674,10 +860,15 @@ function deleteCluster(index) {
     routePlanningState.setState({
         clusters,
         routeConfigs: syncRouteConfigs(state.routeConfigs, clusters),
+        activeClusterIndex: 0,
         editingCluster: null,
         moveOrderId: null,
         moveFromCluster: null,
         clusterSearchTerm: "",
+        stepComplete: {
+            ...clearStepCompletionFrom(state, 4),
+            3: true,
+        },
     });
 }
 

@@ -15,10 +15,7 @@ import { renderStep8 } from "./steps/step8-drivers.js";
 import { renderStep9 } from "./steps/step9-push.js";
 import { renderStepper } from "./components/stepper.js";
 import { renderEmergencyModal } from "./components/emergency-modal.js";
-import {
-    createIcons,
-    icons,
-} from "/node_modules/lucide/dist/esm/lucide.mjs";
+import { createIcons, icons } from "/node_modules/lucide/dist/esm/lucide.mjs";
 
 // ============================================================================
 // CONSTANTS
@@ -102,7 +99,15 @@ export function unmount() {
         clusters: [],
         routeConfigs: {},
         activeClusterIndex: 0,
+        routeStartDateTime: getDefaultRouteStartDateTime(),
     });
+}
+
+function getDefaultRouteStartDateTime() {
+    const now = new Date();
+    const pad = (value) => String(value).padStart(2, "0");
+
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }
 
 // ============================================================================
@@ -111,12 +116,14 @@ export function unmount() {
 
 async function loadInitialData() {
     try {
-        const [orders, areas, vehicles, drivers] = await Promise.all([
+        const [orders, vehicles, drivers] = await Promise.all([
             RoutePlanningAPI.getOrders(),
-            RoutePlanningAPI.getAreas(),
             RoutePlanningAPI.getVehicles(),
             RoutePlanningAPI.getDrivers(),
         ]);
+
+        // Extract areas from orders (no extra API call)
+        const areas = await RoutePlanningAPI.getAreas(orders);
 
         routePlanningState.setState({
             orders,
@@ -196,7 +203,9 @@ function canProceed() {
         case 1:
             return state.orders.some((o) => o.selected);
         case 2:
-            return state.prioritizedOrders.length > 0;
+            return state.prioritizedOrders.some(
+                (order) => order.step2Selected !== false,
+            );
         case 3:
             return (
                 state.clusters.length > 0 &&

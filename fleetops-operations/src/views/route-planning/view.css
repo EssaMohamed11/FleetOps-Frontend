@@ -176,7 +176,7 @@
     border: 1px solid #e8edf7;
     border-radius: 12px;
     padding: 24px;
-    min-height: 600px;
+    min-height: 650px;
     max-height: calc(100vh - 280px);
     flex: 1;
     display: flex;

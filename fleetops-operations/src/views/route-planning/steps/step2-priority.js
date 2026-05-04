@@ -4,10 +4,76 @@
 
 import RoutePlanningAPI from "../../../services/api/route-planning.js";
 import { routePlanningState } from "../utils/state-manager.js";
-import { createElement } from "../utils/helpers.js";
+import {
+    createElement,
+    calculateTotalWeight,
+    calculateTotalVolume,
+} from "../utils/helpers.js";
 
 // Keep in-progress manual edits local to avoid global state-triggered re-renders on each keystroke.
 const pendingPriorityEdits = {};
+
+function clearStepCompletionFrom(state, startStep) {
+    const next = { ...state.stepComplete };
+    for (let step = startStep; step <= 9; step += 1) {
+        delete next[step];
+    }
+    return next;
+}
+
+function isOrderSelectedInStep2(order) {
+    return order?.step2Selected !== false;
+}
+
+function withDefaultStep2Selection(orders) {
+    return orders.map((order) => ({
+        ...order,
+        step2Selected: isOrderSelectedInStep2(order),
+    }));
+}
+
+function updateStep2Selections(nextPrioritizedOrders) {
+    const state = routePlanningState.getState();
+    const hasSelectedOrders = nextPrioritizedOrders.some(
+        isOrderSelectedInStep2,
+    );
+
+    routePlanningState.setState({
+        prioritizedOrders: nextPrioritizedOrders,
+        clusters: [],
+        routeConfigs: {},
+        activeClusterIndex: 0,
+        editingCluster: null,
+        moveOrderId: null,
+        moveFromCluster: null,
+        showNewClusterModal: false,
+        newClusterName: "",
+        clusterSearchTerm: "",
+        stepComplete: {
+            ...clearStepCompletionFrom(state, 3),
+            ...(hasSelectedOrders ? { 2: true } : {}),
+        },
+    });
+}
+
+function toggleStep2Order(orderId) {
+    const state = routePlanningState.getState();
+    const next = state.prioritizedOrders.map((order) =>
+        order.id === orderId
+            ? { ...order, step2Selected: !isOrderSelectedInStep2(order) }
+            : order,
+    );
+    updateStep2Selections(next);
+}
+
+function setStep2OrdersSelection(selectAll) {
+    const state = routePlanningState.getState();
+    const next = state.prioritizedOrders.map((order) => ({
+        ...order,
+        step2Selected: selectAll,
+    }));
+    updateStep2Selections(next);
+}
 
 export async function renderStep2(container) {
     const state = routePlanningState.getState();
@@ -45,7 +111,7 @@ async function autoSortOrders() {
     const sorted = await RoutePlanningAPI.sortOrdersByPriority(selectedOrders);
 
     routePlanningState.setState({
-        prioritizedOrders: sorted,
+        prioritizedOrders: withDefaultStep2Selection(sorted),
         isProcessing: false,
         stepComplete: { ...state.stepComplete, 2: true },
     });
@@ -70,6 +136,15 @@ function renderPrioritizedList(container) {
     const isManualMode = state.manualEditMode2;
     const editPriorityId = state.editPriorityId;
     const editPriorityValue = state.editPriorityValue;
+    const selectedOrders = state.prioritizedOrders.filter(
+        isOrderSelectedInStep2,
+    );
+    const totalWeight = calculateTotalWeight(selectedOrders);
+    const totalVolume = calculateTotalVolume(selectedOrders);
+    const allSelected =
+        state.prioritizedOrders.length > 0 &&
+        selectedOrders.length === state.prioritizedOrders.length;
+    const isPartiallySelected = selectedOrders.length > 0 && !allSelected;
 
     const header = createElement("div", {
         html: `
@@ -98,6 +173,46 @@ function renderPrioritizedList(container) {
     });
     container.appendChild(header);
 
+    if (state.prioritizedOrders.length > 0) {
+        const selectedInfo = createElement("div", {
+            classes: "rp-selected-info",
+        });
+
+        const banner = createElement("div", {
+            classes: "rp-selected-banner",
+        });
+
+        const icon = createElement("i", {
+            attrs: { "data-lucide": "check-circle" },
+        });
+
+        const text = createElement("span", {
+            classes: "rp-selected-text",
+            text: `${selectedOrders.length} orders selected`,
+        });
+
+        const details = createElement("span", {
+            classes: "rp-selected-details",
+            text: `(${Math.round(totalWeight)} kg / ${Math.round(totalVolume * 10) / 10} m³)`,
+        });
+
+        const clearBtn = createElement("button", {
+            classes: "rp-clear-btn",
+            attrs: { type: "button", id: "step2-clear-all-btn" },
+            text: "Clear all",
+        });
+        clearBtn.addEventListener("click", () => {
+            setStep2OrdersSelection(false);
+        });
+
+        banner.appendChild(icon);
+        banner.appendChild(text);
+        banner.appendChild(details);
+        banner.appendChild(clearBtn);
+        selectedInfo.appendChild(banner);
+        container.appendChild(selectedInfo);
+    }
+
     // Add re-sort handler
     setTimeout(() => {
         const resortBtn = document.getElementById("resort-btn");
@@ -123,15 +238,33 @@ function renderPrioritizedList(container) {
         }
 
         if (resortBtn) {
-            resortBtn.addEventListener("click", () => {
+            resortBtn.addEventListener("click", async () => {
                 const latestState = routePlanningState.getState();
+
+                // Re-sort from API (not just local re-sorting)
+                routePlanningState.setState({ isProcessing: true });
+
+                const sorted = await RoutePlanningAPI.sortOrdersByPriority(
+                    latestState.prioritizedOrders,
+                );
+                const nextPrioritizedOrders = withDefaultStep2Selection(sorted);
+                const hasSelectedOrders = nextPrioritizedOrders.some(
+                    isOrderSelectedInStep2,
+                );
+
                 routePlanningState.setState({
-                    prioritizedOrders: sortPrioritizedOrders(
-                        latestState.prioritizedOrders,
-                    ),
+                    prioritizedOrders: nextPrioritizedOrders,
+                    clusters: [],
+                    routeConfigs: {},
+                    activeClusterIndex: 0,
                     manualEditMode2: false,
                     editPriorityId: null,
                     editPriorityValue: "",
+                    isProcessing: false,
+                    stepComplete: {
+                        ...clearStepCompletionFrom(latestState, 3),
+                        ...(hasSelectedOrders ? { 2: true } : {}),
+                    },
                 });
 
                 Object.keys(pendingPriorityEdits).forEach((key) => {
@@ -151,11 +284,13 @@ function renderPrioritizedList(container) {
     const thead = createElement("thead");
     thead.innerHTML = `
         <tr>
+            <th style="width: 40px;"></th>
             <th style="width: 50px;">#</th>
             <th>Order ID</th>
             <th>Customer</th>
             <th>Area</th>
             <th>Weight</th>
+            <th>Volume</th>
             <th>Window</th>
             <th>Type</th>
             <th>Score</th>
@@ -165,9 +300,35 @@ function renderPrioritizedList(container) {
 
     // Body
     const tbody = createElement("tbody");
+    const selectAllCheckbox = createElement("input", {
+        attrs: {
+            type: "checkbox",
+            id: "step2-select-all-checkbox",
+        },
+    });
+    selectAllCheckbox.checked = allSelected;
+    selectAllCheckbox.indeterminate = isPartiallySelected;
+    selectAllCheckbox.addEventListener("change", (event) => {
+        setStep2OrdersSelection(event.target.checked);
+    });
+
+    const selectAllTh = thead.querySelector("th");
+    if (selectAllTh) {
+        selectAllTh.appendChild(selectAllCheckbox);
+    }
+
     state.prioritizedOrders.forEach((order, index) => {
         const row = createElement("tr");
+        row.style.cursor = "pointer";
+        row.dataset.step2RowId = order.id;
         row.innerHTML = `
+            <td>
+                <input
+                    type="checkbox"
+                    data-step2-order-id="${order.id}"
+                    ${isOrderSelectedInStep2(order) ? "checked" : ""}
+                />
+            </td>
             <td>
                 <div style="width: 24px; height: 24px; border-radius: 8px; background: rgba(61, 166, 154, 0.1); color: var(--color-primary); display: flex; align-items: center; justify-content: center; font-size: 0.625rem; font-weight: 700;">
                     ${index + 1}
@@ -177,7 +338,10 @@ function renderPrioritizedList(container) {
             <td>${order.customer}</td>
             <td style="color: var(--color-text-muted);">${order.address}</td>
             <td>${order.weight} kg</td>
-            <td style="font-size: 0.75rem; color: var(--color-text-muted);">${order.window}</td>
+            <td>${order.volume} kg</td>
+            <td style="font-size: 0.75rem; color: var(--color-text-muted); direction: rtl; text-align: left;">
+                ${order.window}
+            </td>
             <td>
                 ${
                     order.perishable
@@ -210,6 +374,31 @@ function renderPrioritizedList(container) {
                 }
             </td>
         `;
+
+        const rowCheckbox = row.querySelector("[data-step2-order-id]");
+        if (rowCheckbox) {
+            rowCheckbox.addEventListener("click", (event) => {
+                event.stopPropagation();
+            });
+
+            rowCheckbox.addEventListener("change", (event) => {
+                toggleStep2Order(event.target.dataset.step2OrderId);
+            });
+        }
+
+        row.addEventListener("click", (event) => {
+            const target = event.target;
+            if (
+                target.closest("input") ||
+                target.closest("button") ||
+                target.closest("[data-priority-badge-id]")
+            ) {
+                return;
+            }
+
+            toggleStep2Order(row.dataset.step2RowId);
+        });
+
         tbody.appendChild(row);
     });
 
@@ -228,6 +417,7 @@ function renderPrioritizedList(container) {
                 .querySelectorAll("[data-priority-badge-id]")
                 .forEach((badge) => {
                     badge.addEventListener("click", (e) => {
+                        e.stopPropagation();
                         const orderId = e.currentTarget.dataset.priorityBadgeId;
                         const currentOrder = routePlanningState
                             .getState()
@@ -249,6 +439,10 @@ function renderPrioritizedList(container) {
             document
                 .querySelectorAll("[data-priority-edit-id]")
                 .forEach((input) => {
+                    input.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                    });
+
                     input.addEventListener("input", (e) => {
                         const orderId = e.target.dataset.priorityEditId;
                         pendingPriorityEdits[orderId] = e.target.value;
@@ -258,7 +452,7 @@ function renderPrioritizedList(container) {
     }
 
     const info = createElement("p", {
-        html: `<span style="font-size: 0.75rem; color: var(--color-text-muted);">${state.prioritizedOrders.length} orders in queue</span>`,
+        html: `<span style="font-size: 0.75rem; color: var(--color-text-muted);">${selectedOrders.length} of ${state.prioritizedOrders.length} orders selected for Step 3</span>`,
     });
     container.appendChild(info);
 }
@@ -288,10 +482,24 @@ function saveManualEdits() {
         delete pendingPriorityEdits[key];
     });
 
+    const nextPrioritizedOrders = withDefaultStep2Selection(
+        sortPrioritizedOrders(updatedOrders),
+    );
+    const hasSelectedOrders = nextPrioritizedOrders.some(
+        isOrderSelectedInStep2,
+    );
+
     routePlanningState.setState({
-        prioritizedOrders: sortPrioritizedOrders(updatedOrders),
+        prioritizedOrders: nextPrioritizedOrders,
+        clusters: [],
+        routeConfigs: {},
+        activeClusterIndex: 0,
         manualEditMode2: false,
         editPriorityId: null,
         editPriorityValue: "",
+        stepComplete: {
+            ...clearStepCompletionFrom(state, 3),
+            ...(hasSelectedOrders ? { 2: true } : {}),
+        },
     });
 }

@@ -38,6 +38,7 @@ class StateManager {
 
         this.state = { ...this.state, ...newState };
         this.notify(prevState);
+        console.log(this.state);
     }
 
     /**
@@ -116,6 +117,7 @@ const initialState = {
 
     // Step 6: Manual Edit
     manualEditMode6: false,
+    routeStartDateTime: getDefaultRouteStartDateTime(),
 
     // Emergency Insert
     showEmergencyInsert: false,
@@ -138,6 +140,13 @@ const initialState = {
 // ============================================================================
 
 const routePlanningState = new StateManager(initialState);
+
+function getDefaultRouteStartDateTime() {
+    const now = new Date();
+    const pad = (value) => String(value).padStart(2, "0");
+
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
 
 // ============================================================================
 // EXPORTS

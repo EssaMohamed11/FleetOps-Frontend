@@ -29,6 +29,8 @@ export async function renderStep5(container) {
     container.appendChild(wrapper);
 }
 
+let capacityRenderToken = 0;
+
 async function autoCheckCapacity() {
     routePlanningState.setState({ isProcessing: true });
 
@@ -43,6 +45,7 @@ async function autoCheckCapacity() {
         const result = await RoutePlanningAPI.checkVehicleCapacity(
             vehicle,
             cluster.orders,
+            { zone: cluster.zone, color: cluster.color },
         );
 
         newConfigs[cluster.zone] = {
@@ -71,6 +74,7 @@ function renderLoading(container) {
 }
 
 function renderCapacityResults(container) {
+    const token = ++capacityRenderToken;
     const state = routePlanningState.getState();
     const vehicles = state.vehicles || [];
 
@@ -79,12 +83,17 @@ function renderCapacityResults(container) {
         <p style="font-size: 0.75rem; color: var(--color-text-muted); margin: 0 0 20px 0;">
             Each cluster's load checked against its assigned vehicle
         </p>
-        <div id="capacity-results" style="display: flex; flex-direction: column; gap: 12px;"></div>
+        <div id="capacity-results" style="display: flex; flex-direction: column; gap: 12px; overflow-y: auto; "></div>
     `;
 
     setTimeout(() => {
+        if (token !== capacityRenderToken) {
+            return;
+        }
+
         const resultsContainer = document.getElementById("capacity-results");
         if (resultsContainer) {
+            resultsContainer.innerHTML = "";
             state.clusters.forEach((cluster, index) => {
                 const rc = state.routeConfigs[cluster.zone];
                 const result = rc.capacityResult;

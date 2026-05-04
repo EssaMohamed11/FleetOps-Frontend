@@ -11,10 +11,7 @@ import {
     formatNumber,
     debounce,
 } from "../utils/helpers.js";
-import {
-    createIcons,
-    icons,
-} from "/node_modules/lucide/dist/esm/lucide.mjs";
+import { createIcons, icons } from "/node_modules/lucide/dist/esm/lucide.mjs";
 
 const PAGE_SIZE = 25;
 let currentContainer = null;
@@ -197,8 +194,9 @@ function renderFilters(container) {
     const typeGroup = createElement("div", { classes: "rp-filter-group" });
     const types = [
         { value: "all", label: "All Types" },
-        { value: "perishable", label: "Perishable" },
+        { value: "perish", label: "Perishable" },
         { value: "express", label: "Express" },
+        { value: "normal", label: "Normal" },
     ];
 
     types.forEach((type) => {
@@ -255,6 +253,42 @@ function renderFilters(container) {
     container.appendChild(filters);
 }
 
+function getOrderKey(order) {
+    return String(order?.OrderID ?? order?.id ?? "");
+}
+
+function getOrderCustomerName(order) {
+    if (typeof order?.customer === "string") {
+        return order.customer;
+    }
+
+    return order?.customer?.user?.name || order?.customer?.name || "Unknown";
+}
+
+function setOrdersAndInvalidatePipeline(orders) {
+    const state = routePlanningState.getState();
+    const nextStepComplete = { ...state.stepComplete };
+
+    // Any selection change in step 1 invalidates all derived pipeline outputs.
+    [2, 3, 4, 5, 6, 7, 8, 9].forEach((step) => {
+        delete nextStepComplete[step];
+    });
+
+    routePlanningState.setState({
+        orders,
+        prioritizedOrders: [],
+        clusters: [],
+        routeConfigs: {},
+        activeClusterIndex: 0,
+        manualEditMode2: false,
+        editPriorityId: null,
+        editPriorityValue: "",
+        manualEditMode6: false,
+        emergencyInserted: false,
+        stepComplete: nextStepComplete,
+    });
+}
+
 /**
  * Render selected info banner
  */
@@ -299,7 +333,7 @@ function renderSelectedInfo(container) {
         const orders = routePlanningState
             .getState()
             .orders.map((o) => ({ ...o, selected: false }));
-        routePlanningState.setState({ orders });
+        setOrdersAndInvalidatePipeline(orders);
     });
 
     banner.appendChild(icon);
@@ -331,7 +365,9 @@ async function renderTable(container) {
 
     // Merge selected status from current state into result data
     result.data = result.data.map((order) => {
-        const stateOrder = state.orders.find((o) => o.id === order.id);
+        const stateOrder = state.orders.find(
+            (o) => getOrderKey(o) === getOrderKey(order),
+        );
         return { ...order, selected: stateOrder ? stateOrder.selected : false };
     });
 
@@ -353,7 +389,7 @@ async function renderTable(container) {
         { label: "Volume" },
         { label: "Window" },
         { label: "Type" },
-        { label: "Priority" },
+        // { label: "Priority" },
     ];
 
     headers.forEach((header) => {
@@ -374,14 +410,14 @@ async function renderTable(container) {
                 result.data.length > 0 && result.data.every((o) => o.selected);
 
             checkbox.addEventListener("change", (e) => {
-                const ids = new Set(result.data.map((o) => o.id));
+                const ids = new Set(result.data.map((o) => getOrderKey(o)));
                 const orders = state.orders.map((o) => {
-                    if (ids.has(o.id)) {
+                    if (ids.has(getOrderKey(o))) {
                         return { ...o, selected: e.target.checked };
                     }
                     return o;
                 });
-                routePlanningState.setState({ orders });
+                setOrdersAndInvalidatePipeline(orders);
             });
 
             th.innerHTML = "";
@@ -409,7 +445,7 @@ async function renderTable(container) {
 
         row.addEventListener("click", (e) => {
             if (e.target.type !== "checkbox") {
-                toggleOrder(order.id);
+                toggleOrder(getOrderKey(order));
             }
         });
 
@@ -421,7 +457,7 @@ async function renderTable(container) {
         checkbox.checked = order.selected;
         checkbox.addEventListener("click", (e) => {
             e.stopPropagation();
-            toggleOrder(order.id);
+            toggleOrder(getOrderKey(order));
         });
         checkboxTd.appendChild(checkbox);
         row.appendChild(checkboxTd);
@@ -429,72 +465,82 @@ async function renderTable(container) {
         // Order ID
         row.appendChild(
             createElement("td", {
-                html: `<span style="font-weight: 600;">${order.id}</span>`,
+                html: `<span style="font-weight: 600;">${order.OrderID ?? order.id}</span>`,
             }),
         );
 
         // Customer
-        row.appendChild(createElement("td", { text: order.customer }));
+        row.appendChild(
+            createElement("td", { text: getOrderCustomerName(order) }),
+        );
 
         // Area
         row.appendChild(
             createElement("td", {
-                html: `<span style="color: var(--color-text-muted);">${order.address}</span>`,
+                html: `<span style="color: var(--color-text-muted);">${order.Area || order.address || "Unknown"}</span>`,
             }),
         );
 
         // Weight
-        row.appendChild(createElement("td", { text: `${order.weight} kg` }));
+        row.appendChild(
+            createElement("td", {
+                text: `${order.Weight ?? order.weight ?? 0} kg`,
+            }),
+        );
 
         // Volume
-        row.appendChild(createElement("td", { text: `${order.volume} m³` }));
+        row.appendChild(
+            createElement("td", {
+                text: `${order.Volume ?? order.volume ?? 0} m³`,
+            }),
+        );
 
         // Window
         row.appendChild(
             createElement("td", {
-                html: `<span style="font-size: 0.75rem; color: var(--color-text-muted);">${order.window}</span>`,
+                html: `<span style="font-size: 0.75rem; color: var(--color-text-muted);" dir="rtl">${order.DeliveryTimeWindow || order.window || "09:00-18:00"}</span>`,
             }),
         );
 
         // Type
         const typeTd = createElement("td");
-        if (order.perishable) {
+        if (order.Type === "Perishable" || order.perishable) {
             typeTd.innerHTML =
                 '<span class="rp-badge perishable">Perish</span>';
-        } else if (order.express) {
+        } else if (order.Type === "Express" || order.express) {
             typeTd.innerHTML = '<span class="rp-badge express">Express</span>';
         } else {
             typeTd.innerHTML = '<span class="rp-badge normal">Normal</span>';
         }
         row.appendChild(typeTd);
 
-        // Priority
-        const priorityTd = createElement("td");
-        const priorityDiv = createElement("div", { classes: "rp-priority" });
+        // // Priority
+        // const priorityTd = createElement("td");
+        // const priorityDiv = createElement("div", { classes: "rp-priority" });
 
-        const bar = createElement("div", { classes: "rp-priority__bar" });
-        const fill = createElement("div", {
-            classes: [
-                "rp-priority__fill",
-                order.priority > 80
-                    ? "high"
-                    : order.priority > 60
-                      ? "medium"
-                      : "low",
-            ],
-        });
-        fill.style.width = `${order.priority}%`;
-        bar.appendChild(fill);
+        // const bar = createElement("div", { classes: "rp-priority__bar" });
+        // const fill = createElement("div", {
+        //     classes: [
+        //         "rp-priority__fill",
+        //         order.priority > 80
+        //             ? "high"
+        //             : order.priority > 60
+        //               ? "medium"
+        //               : "low",
+        //     ],
+        // });
+        // fill.style.width = `${order.priority}%`;
+        // bar.appendChild(fill);
 
-        const value = createElement("span", {
-            classes: "rp-priority__value",
-            text: order.priority,
-        });
+        // const value = createElement("span", {
+        //     classes: "rp-priority__value",
+        //     text: order.priority,
+        // });
 
-        priorityDiv.appendChild(bar);
-        priorityDiv.appendChild(value);
-        priorityTd.appendChild(priorityDiv);
-        row.appendChild(priorityTd);
+        // priorityDiv.appendChild(bar);
+        // priorityDiv.appendChild(value);
+        // priorityTd.appendChild(priorityDiv);
+        // row.appendChild(priorityTd);
 
         tbody.appendChild(row);
     });
@@ -610,12 +656,13 @@ function createPaginationButton(content, onClick, disabled = false) {
  */
 function toggleOrder(orderId) {
     const state = routePlanningState.getState();
+    const target = String(orderId);
 
     const orders = state.orders.map((o) => {
-        if (o.id === orderId) {
+        if (getOrderKey(o) === target) {
             return { ...o, selected: !o.selected };
         }
         return o;
     });
-    routePlanningState.setState({ orders });
+    setOrdersAndInvalidatePipeline(orders);
 }
