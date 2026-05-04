@@ -1,34 +1,25 @@
 import api from "/shared/api-handler.js";
 
-// إعداد الرابط الأساسي للباك إند
-api.setBaseURL("http://localhost:8000/api/v1"); 
-
-// دالة مساعدة لجلب التوكن
-const getHeaders = () => ({
-    'Accept': 'application/json',
-    'Authorization': `Bearer ${localStorage.getItem('token')}`
-});
+// إعداد الرابط الأساسي (لو مش معموله إعداد جلوبال في ملف تاني)
+api.setBaseURL("http://localhost:8000"); 
 
 // 1. جلب المستخدمين
-// API: GET /api/v1/users
 export async function getUsers(filters = {}) {
     try {
-        const queryParams = new URLSearchParams();
-        // التعديل هنا: التأكد إن الـ role مش all (سواء كابيتال أو سمول)
+        // تجميع الفلاتر ككائن بسيط، والـ api-handler هيحولها لـ Query Params
+        const params = {};
         if (filters.role && filters.role.toLowerCase() !== 'all') {
-            queryParams.append('role', filters.role);
+            params.role = filters.role;
         }
-        if (filters.search) queryParams.append('search', filters.search);
+        if (filters.search) {
+            params.search = filters.search;
+        }
         
-        const response = await fetch(`http://localhost:8000/api/v1/users?${queryParams.toString()}`, {
-            method: 'GET',
-            headers: getHeaders()
-        });
+        // استدعاء نظيف جداً ومختصر
+        const { data } = await api.get("/api/v1/users", { params });
 
-        const result = await response.json();
-        
-        if (result.success) {
-            return result.data.data.map(user => ({
+        if (data.success) {
+            return data.data.data.map(user => ({
                 id: user.user_id,
                 fullName: user.name,
                 email: user.email,
@@ -38,44 +29,32 @@ export async function getUsers(filters = {}) {
                 city: '--'
             })); 
         }
-        console.error("Backend Error:", result.message);
+        console.error("Backend Error:", data.message);
         return [];
     } catch (error) {
-        console.error("Network Error:", error);
+        console.error("Network Error:", error.data?.message || error.message);
         return [];
-    }
-}
-// 2. إضافة مستخدم جديد
-export async function createUser(userData) {
-    try {
-        const response = await fetch(`http://localhost:8000/api/v1/users`, {
-            method: 'POST',
-            headers: {
-                ...getHeaders(),
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(userData)
-        });
-        return await response.json();
-    } catch (error) {
-        return { success: false, message: error.message };
     }
 }
 
-// 3. تحديث مستخدم (تعديل البيانات أو تغيير الحالة)
+// 2. إضافة مستخدم جديد
+export async function createUser(userData) {
+    try {
+        // الـ api-handler بيعمل JSON.stringify أوتوماتيك وبيحط الـ Headers
+        const { data } = await api.post("/api/v1/users", userData);
+        return data; 
+    } catch (error) {
+        return { success: false, message: error.data?.message || error.message };
+    }
+}
+
+// 3. تحديث مستخدم
 export async function updateUsers(userId, userData) {
     try {
-        const response = await fetch(`http://localhost:8000/api/v1/users/${userId}`, {
-            method: 'PUT',
-            headers: {
-                ...getHeaders(),
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(userData)
-        });
-        return await response.json();
+        const { data } = await api.put(`/api/v1/users/${userId}`, userData);
+        return data;
     } catch (error) {
-        return { success: false, message: error.message };
+        return { success: false, message: error.data?.message || error.message };
     }
 }
 
