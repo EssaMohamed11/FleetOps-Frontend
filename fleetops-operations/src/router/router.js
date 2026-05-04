@@ -1,4 +1,10 @@
-import { normalizePath, notFoundRoute, routes } from "./routes.js";
+import {
+    canAccessPath,
+    normalizePath,
+    normalizeRole,
+    notFoundRoute,
+    routes,
+} from "./routes.js";
 
 export function initRouter({ outletId }) {
     const outlet = document.getElementById(outletId);
@@ -11,19 +17,43 @@ export function initRouter({ outletId }) {
 
     async function renderCurrentRoute() {
         const currentPath = normalizePath(window.location.pathname);
-        // ----------(عشان محدش يدخل من غير التوكن و تبقا ال login اول صفحة تظهر ) التعديل هنا: حماية المسارات ----------
-        const token = localStorage.getItem('token');
-        if (!token && currentPath !== '/login') {
-            navigateTo('/login');
+        const token = localStorage.getItem("token");
+        const userRaw = localStorage.getItem("user");
+        let currentRole = "";
+
+        if (userRaw) {
+            try {
+                currentRole = normalizeRole(JSON.parse(userRaw)?.role);
+            } catch {
+                currentRole = "";
+            }
+        }
+
+        if (!token && currentPath !== "/login") {
+            navigateTo("/login");
             return;
         }
-        if (token && currentPath === '/login') {
-            navigateTo('/');
+        if (token && currentPath === "/login") {
+            navigateTo("/");
             return;
         }
-        // -----------------------------------------------
+
+        if (token && currentPath !== "/login" && !currentRole) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            navigateTo("/login");
+            return;
+        }
+
         const activeRoute =
             routes.find((route) => route.path === currentPath) ?? notFoundRoute;
+
+        if (activeRoute.path !== "/login" && activeRoute.path !== "/404") {
+            if (!canAccessPath(activeRoute.path, currentRole)) {
+                navigateTo("/");
+                return;
+            }
+        }
 
         if (currentRouteModule?.unmount) {
             currentRouteModule.unmount(outlet);
@@ -51,7 +81,7 @@ export function initRouter({ outletId }) {
         currentRouteStylesheet = stylesheet;
         document.title = activeRoute.title;
         outlet.innerHTML = html;
-        
+
         document.getElementById("nav-title").textContent = activeRoute.title;
 
         const routeModule = await import(activeRoute.view.js);

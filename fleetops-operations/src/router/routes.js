@@ -154,6 +154,39 @@ export const routes = [
     },
 ];
 
+const defaultAllowedRoles = ["fleetmanager", "dispatcher"];
+const fleetManagerOnlyRoutes = new Set([
+    "/settings",
+    "/audit-trail",
+    "/analytics",
+    "/user-management",
+    "/inventory",
+]);
+
+export function normalizeRole(role) {
+    return String(role ?? "")
+        .trim()
+        .toLowerCase();
+}
+
+export function getAllowedRolesForPath(pathname) {
+    const normalizedPath = normalizePath(pathname);
+
+    return fleetManagerOnlyRoutes.has(normalizedPath)
+        ? ["fleetmanager"]
+        : defaultAllowedRoles;
+}
+
+export function canAccessPath(pathname, role) {
+    const normalizedRole = normalizeRole(role);
+
+    if (!normalizedRole) {
+        return false;
+    }
+
+    return getAllowedRolesForPath(pathname).includes(normalizedRole);
+}
+
 export const notFoundRoute = {
     path: "/404",
     title: "Not Found",

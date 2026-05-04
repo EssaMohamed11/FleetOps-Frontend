@@ -8,8 +8,8 @@
         <link rel="stylesheet" href="./src/styles/main.css" />
         <style>
             /* إخفاء محتوى الداشبورد بالكامل كوضع افتراضي */
-            [data-shell] { 
-                display: none; 
+            [data-shell] {
+                display: none;
             }
         </style>
     </head>
@@ -141,6 +141,7 @@
                         href="/inventory"
                         data-link
                         data-route="/inventory"
+                        data-allowed-roles="fleetmanager"
                         title="Inventory">
                         <span class="sidebar-link__icon"
                             ><i data-lucide="boxes"></i
@@ -152,6 +153,7 @@
                         href="/user-management"
                         data-link
                         data-route="/user-management"
+                        data-allowed-roles="fleetmanager"
                         title="User Management">
                         <span class="sidebar-link__icon"
                             ><i data-lucide="users"></i
@@ -163,6 +165,7 @@
                         href="/analytics"
                         data-link
                         data-route="/analytics"
+                        data-allowed-roles="fleetmanager"
                         title="Analytics">
                         <span class="sidebar-link__icon"
                             ><i data-lucide="chart-column"></i
@@ -185,6 +188,7 @@
                         href="/audit-trail"
                         data-link
                         data-route="/audit-trail"
+                        data-allowed-roles="fleetmanager"
                         title="Audit Trail">
                         <span class="sidebar-link__icon"
                             ><i data-lucide="clipboard-list"></i
@@ -196,13 +200,14 @@
                         href="/settings"
                         data-link
                         data-route="/settings"
+                        data-allowed-roles="fleetmanager"
                         title="Settings">
                         <span class="sidebar-link__icon"
                             ><i data-lucide="settings"></i
                         ></span>
                         <span class="sidebar-link__label">Settings</span>
                     </a>
-                    <a
+                    <!-- <a
                         class="sidebar-link"
                         href="/preview-page"
                         data-link
@@ -212,7 +217,7 @@
                             ><i data-lucide="eye"></i
                         ></span>
                         <span class="sidebar-link__label">Preview Page</span>
-                    </a>
+                    </a> -->
                 </nav>
 
                 <div class="sidebar-footer">

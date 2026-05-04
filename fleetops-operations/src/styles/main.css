@@ -241,6 +241,14 @@ h6 {
     transition-duration: 300ms;
 }
 
+.sidebar-link[hidden] {
+    display: none !important;
+}
+
+[hidden] {
+    display: none !important;
+}
+
 .sidebar-link:hover {
     background: #e8edf7;
     color: #364869;
