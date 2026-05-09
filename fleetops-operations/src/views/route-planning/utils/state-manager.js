@@ -69,7 +69,7 @@ class StateManager {
      */
     reset(initialState = {}) {
         this.state = { ...initialState };
-        // Do NOT notify listeners on reset — they may be stale from a previous page
+        this.notify();
     }
 }
 

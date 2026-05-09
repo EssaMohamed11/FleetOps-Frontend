@@ -15,100 +15,90 @@ export function initRouter({ outletId }) {
         throw new Error(`Router outlet #${outletId} was not found.`);
     }
 
-    let isNavigating = false;
-
     async function renderCurrentRoute() {
-        if (isNavigating) return; // Prevent concurrent navigation
-        isNavigating = true;
+        const currentPath = normalizePath(window.location.pathname);
+        const token = localStorage.getItem("token");
+        const userRaw = localStorage.getItem("user");
+        let currentRole = "";
 
-        try {
-            const currentPath = normalizePath(window.location.pathname);
-            const token = localStorage.getItem("token");
-            const userRaw = localStorage.getItem("user");
-            let currentRole = "";
-
-            if (userRaw) {
-                try {
-                    currentRole = normalizeRole(JSON.parse(userRaw)?.role);
-                } catch {
-                    currentRole = "";
-                }
+        if (userRaw) {
+            try {
+                currentRole = normalizeRole(JSON.parse(userRaw)?.role);
+            } catch {
+                currentRole = "";
             }
+        }
 
-            if (!token && currentPath !== "/login") {
-                navigateTo("/login");
-                return;
-            }
-            if (token && currentPath === "/login") {
+        if (!token && currentPath !== "/login") {
+            navigateTo("/login");
+            return;
+        }
+        if (token && currentPath === "/login") {
+            navigateTo("/");
+            return;
+        }
+
+        if (token && currentPath !== "/login" && !currentRole) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            navigateTo("/login");
+            return;
+        }
+
+        const activeRoute =
+            routes.find((route) => route.path === currentPath) ?? notFoundRoute;
+
+        if (activeRoute.path !== "/login" && activeRoute.path !== "/404") {
+            if (!canAccessPath(activeRoute.path, currentRole)) {
                 navigateTo("/");
                 return;
             }
-
-            if (token && currentPath !== "/login" && !currentRole) {
-                localStorage.removeItem("token");
-                localStorage.removeItem("user");
-                navigateTo("/login");
-                return;
-            }
-
-            const activeRoute =
-                routes.find((route) => route.path === currentPath) ?? notFoundRoute;
-
-            if (activeRoute.path !== "/login" && activeRoute.path !== "/404") {
-                if (!canAccessPath(activeRoute.path, currentRole)) {
-                    navigateTo("/");
-                    return;
-                }
-            }
-
-            if (currentRouteModule?.unmount) {
-                currentRouteModule.unmount(outlet);
-            }
-
-            const htmlResponse = await fetch(activeRoute.view.html);
-            if (!htmlResponse.ok) {
-                throw new Error(
-                    `Failed to load HTML view: ${activeRoute.view.html}`,
-                );
-            }
-
-            const html = await htmlResponse.text();
-
-            if (currentRouteStylesheet) {
-                currentRouteStylesheet.remove();
-            }
-
-            const stylesheet = document.createElement("link");
-            stylesheet.rel = "stylesheet";
-            stylesheet.href = activeRoute.view.css;
-            stylesheet.dataset.routeStyle = activeRoute.path;
-            document.head.appendChild(stylesheet);
-
-            currentRouteStylesheet = stylesheet;
-            document.title = activeRoute.title;
-            outlet.innerHTML = html;
-
-            document.getElementById("nav-title").textContent = activeRoute.title;
-
-            const routeModule = await import(activeRoute.view.js);
-            currentRouteModule = routeModule;
-
-            if (routeModule.mount) {
-                await routeModule.mount(outlet);
-            }
-
-            setActiveLink(activeRoute.path);
-
-            window.dispatchEvent(
-                new CustomEvent("route:changed", {
-                    detail: { path: activeRoute.path },
-                }),
-            );
-        } finally {
-            isNavigating = false;
         }
-    }
 
+        if (currentRouteModule?.unmount) {
+            currentRouteModule.unmount(outlet);
+        }
+
+        const htmlResponse = await fetch(activeRoute.view.html);
+        if (!htmlResponse.ok) {
+            throw new Error(
+                `Failed to load HTML view: ${activeRoute.view.html}`,
+            );
+        }
+
+        const html = await htmlResponse.text();
+
+        if (currentRouteStylesheet) {
+            currentRouteStylesheet.remove();
+        }
+
+        const stylesheet = document.createElement("link");
+        stylesheet.rel = "stylesheet";
+        stylesheet.href = activeRoute.view.css;
+        stylesheet.dataset.routeStyle = activeRoute.path;
+        document.head.appendChild(stylesheet);
+
+        currentRouteStylesheet = stylesheet;
+        document.title = activeRoute.title;
+        outlet.innerHTML = html;
+
+        document.getElementById("nav-title").textContent = activeRoute.title;
+
+        const routeModule = await import(activeRoute.view.js);
+        currentRouteModule = routeModule;
+
+        if (routeModule.mount) {
+            routeModule.mount(outlet);
+        }
+
+        setActiveLink(activeRoute.path);
+
+        window.dispatchEvent(
+            new CustomEvent("route:changed", {
+                detail: { path: activeRoute.path },
+            }),
+        );
+    }
 
     function navigateTo(path) {
         const targetPath = normalizePath(path);
