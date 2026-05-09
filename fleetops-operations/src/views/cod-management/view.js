@@ -7,12 +7,12 @@ import {
 let cleanupFns = [];
 let state = null;
 
-export function mount() {
+export async function mount() {
     state = {
         collectionFilter: "All",
         handoverFilter: "All",
         modalRecordId: null,
-        records: CodManagementApi.getRecords(),
+        records: await CodManagementApi.getRecords(),
         searchTerm: "",
     };
 
@@ -387,7 +387,7 @@ function renderHandoverPill(record) {
     return `<span class="cod-status-pill cod-status-pill--not-handed-over">Not Handed Over</span>`;
 }
 
-function renderModal() {
+async function renderModal() {
     const modalRoot = document.getElementById("cod-modal-root");
     if (!modalRoot) {
         return;
@@ -398,7 +398,7 @@ function renderModal() {
         return;
     }
 
-    const record = CodManagementApi.getRecordById(state.modalRecordId);
+    const record = await CodManagementApi.getRecordById(state.modalRecordId);
     if (!record) {
         modalRoot.innerHTML = "";
         return;
@@ -600,9 +600,9 @@ function handleModalClick(event) {
     }
 }
 
-function openModal(recordId) {
+async function openModal(recordId) {
     state.modalRecordId = recordId;
-    renderModal();
+    await renderModal();
     refreshIcons();
 }
 
@@ -611,23 +611,24 @@ function closeModal() {
     renderModal();
 }
 
-function markHandedOver(recordId) {
-    CodManagementApi.markHandedOver(recordId);
-    state.records = CodManagementApi.getRecords();
+async function markHandedOver(recordId) {
+    await CodManagementApi.markHandedOver(recordId);
+    state.records = await CodManagementApi.getRecords();
     renderPage();
 }
 
-function bulkMarkForDriver(driverName) {
-    state.records
+async function bulkMarkForDriver(driverName) {
+    const recordsToMark = state.records
         .filter(
             (record) =>
                 record.driver === driverName &&
                 record.handoverStatus !== "Handed Over" &&
                 record.collectedAmount > 0,
-        )
-        .forEach((record) => CodManagementApi.markHandedOver(record.id));
+        );
+        
+    await Promise.all(recordsToMark.map((record) => CodManagementApi.markHandedOver(record.id)));
 
-    state.records = CodManagementApi.getRecords();
+    state.records = await CodManagementApi.getRecords();
     renderPage();
 }
 

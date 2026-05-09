@@ -8,28 +8,84 @@ let cleanupFns = [];
 let state = null;
 let routePlaybackTimer = null;
 
+// ─── Leaflet ───────────────────────────────────────────────────────────────
+const LEAFLET_CSS_URL = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+const LEAFLET_JS_URL  = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+let leafletLoadPromise = null;
+let routeMapInstance   = null;
+let routeMapMarkers    = [];
+let routeMapPolyline   = null;
+let vehicleMarker      = null;
+
 const PAGE_SIZE = 10;
 
-export function mount() {
+export async function mount() {
+    console.log("[Routes] mount() called, state before:", state);
     state = {
         activeStatus: "All",
         currentPage: 1,
         date: "All Dates",
         modal: null,
-        routes: RoutesApi.getRoutes(),
+        routes: [],
         searchTerm: "",
         shift: "All Shifts",
     };
 
+    // Load initial data
+    const tableBody = document.getElementById("routes-table-body");
+    if (tableBody) tableBody.innerHTML = `<tr><td colspan="12"><div style="text-align: center; padding: 2rem;">Loading routes from server...</div></td></tr>`;
+
+    console.log("[Routes] fetching routes...");
+    state.routes = await RoutesApi.getRoutes();
+    console.log("[Routes] getRoutes() returned:", state.routes.length, "routes. state is:", state);
+
     bindEvents();
     renderPage();
-    openRouteFromLiveMonitoring();
+    await openRouteFromLiveMonitoring();
+    console.log("[Routes] mount() complete");
 }
 
+
 export function unmount() {
+    clearRoutePlaybackTimer();
+    destroyMap();
     cleanupFns.forEach((cleanup) => cleanup?.());
     cleanupFns = [];
     state = null;
+}
+
+function loadLeaflet() {
+    if (leafletLoadPromise) return leafletLoadPromise;
+
+    leafletLoadPromise = new Promise((resolve, reject) => {
+        if (window.L) {
+            resolve(window.L);
+            return;
+        }
+
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = LEAFLET_CSS_URL;
+        document.head.appendChild(link);
+
+        const script = document.createElement("script");
+        script.src = LEAFLET_JS_URL;
+        script.onload = () => resolve(window.L);
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+
+    return leafletLoadPromise;
+}
+
+function destroyMap() {
+    if (routeMapInstance) {
+        routeMapInstance.remove();
+        routeMapInstance = null;
+    }
+    routeMapMarkers = [];
+    routeMapPolyline = null;
+    vehicleMarker = null;
 }
 
 function bindEvents() {
@@ -104,7 +160,7 @@ function renderOverview() {
         return;
     }
 
-    const stats = RoutesApi.getOverviewStats();
+    const stats = RoutesApi.getOverviewStats(state.routes);
     container.innerHTML = [
         renderStatCard("Active Routes", stats.activeRoutes, "map-pinned", "blue"),
         renderStatCard("Completed Today", stats.completedToday, "circle-check-big", "green"),
@@ -295,8 +351,17 @@ function renderModal() {
         return;
     }
 
-    if (state.modal.type === "details") {
-        root.innerHTML = renderDetailsModal(state.modal.routeId);
+    if (state.modal.type === "details" && state.modal.routeData) {
+        root.innerHTML = renderDetailsModal(state.modal.routeData);
+
+        const tab = state.modal.tab ?? "stops";
+        if (tab === "playback") {
+            setTimeout(() => initRouteMap(state.modal.routeData, "playback"), 50);
+        } else if (tab === "summary") {
+            setTimeout(() => initRouteMap(state.modal.routeData, "summary"), 50);
+        } else {
+            destroyMap();
+        }
         return;
     }
 
@@ -305,8 +370,7 @@ function renderModal() {
     }
 }
 
-function renderDetailsModal(routeId) {
-    const route = RoutesApi.getRouteById(routeId);
+function renderDetailsModal(route) {
     if (!route) {
         return "";
     }
@@ -386,9 +450,14 @@ function renderRouteTab(route, tab) {
                     <div><span>ETA Status</span><strong>${route.etaStatus || "--"}</strong></div>
                     <div><span>Route Version</span><strong>${route.version}</strong></div>
                 </div>
-                <div class="route-summary-chart">
-                    <div class="playback-grid"></div>
-                    ${renderSummaryChart(route)}
+                <div class="route-summary-chart" style="position: relative; overflow: hidden;">
+                    <div id="route-summary-map" style="width: 100%; height: 100%; border-radius: 8px; min-height: 260px;"></div>
+                    <div class="playback-legend route-summary-legend">
+                        <span class="legend-chip"><span class="legend-dot legend-dot--purple"></span>Depot</span>
+                        <span class="legend-chip"><span class="legend-dot legend-dot--green"></span>Delivered</span>
+                        <span class="legend-chip"><span class="legend-dot legend-dot--slate"></span>Upcoming</span>
+                        <span class="legend-chip"><span class="legend-dot legend-dot--yellow"></span>Vehicle</span>
+                    </div>
                     <div class="route-summary-chart__pill">
                         <span>${route.distanceKm} km</span>
                         <span>${route.totalStops} Stops</span>
@@ -415,26 +484,13 @@ function renderRouteTab(route, tab) {
             <section class="route-playback-layout">
                 <div>
                     <div class="route-playback">
-                        <div class="playback-grid"></div>
-                        ${renderPlaybackMap(route, frame)}
+                        <div id="route-playback-map" style="width: 100%; height: 100%; border-radius: 8px; min-height: 280px;"></div>
                         <div class="playback-legend">
                             <span class="legend-chip"><span class="legend-dot legend-dot--purple"></span>Depot</span>
                             <span class="legend-chip"><span class="legend-dot legend-dot--green"></span>Delivered</span>
-                            <span class="legend-chip"><span class="legend-dot legend-dot--teal"></span>Visited</span>
                             <span class="legend-chip"><span class="legend-dot legend-dot--slate"></span>Upcoming</span>
                             <span class="legend-chip"><span class="legend-dot legend-dot--yellow"></span>Vehicle</span>
                         </div>
-                    </div>
-                    <div class="route-timeline-strip">
-                        <span>${route.eventTime}</span>
-                        <div class="route-timeline-strip__line"></div>
-                        <span>01:18 PM</span>
-                    </div>
-                    <div class="route-timeline-strip__labels">
-                        <span>Delivery</span>
-                        <span>Speed alert</span>
-                        <span>Delay</span>
-                        <span>Break</span>
                     </div>
                     <div class="route-playback-controls">
                         <button class="play-btn" type="button" data-action="toggle-play">
@@ -448,7 +504,7 @@ function renderRouteTab(route, tab) {
                             <button class="speed-chip ${speed === 5 ? "is-active" : ""}" type="button" data-action="change-speed" data-speed="5">5x</button>
                             <button class="speed-chip ${speed === 10 ? "is-active" : ""}" type="button" data-action="change-speed" data-speed="10">10x</button>
                         </div>
-                        <span>Frame ${frame} / ${route.playbackFrames} - ${route.eventTime}</span>
+                        <span id="playback-frame-counter">Frame ${frame} / ${route.playbackFrames} - ${route.eventTime}</span>
                     </div>
                 </div>
                 <div class="route-playback-panel">
@@ -502,29 +558,212 @@ function renderRouteTab(route, tab) {
     `;
 }
 
-function renderPlaybackMap(route, frame = 1) {
-    const points = route.linePoints;
-    const step = 100 / (points.length + 1);
-    const frameIndex = Math.min(points.length - 1, Math.max(0, frame - 1));
+function renderPlaybackMap() {
+    // Just a container — real map is injected after render by initRouteMap()
+    return `<div id="route-playback-map" style="width: 100%; height: 100%; border-radius: 8px; min-height: 280px; background: #e8f4f8;"></div>`;
+}
 
-    return `
-        <div class="playback-path">
-            ${points
-                .map((point, index) => {
-                    const left = 10 + step * index;
-                    const top = 70 - point;
-                    const isVehicle = index === frameIndex;
-                    const isDelivered = index < frameIndex;
+async function initRouteMap(route, mode) {
+    // mode: "summary" (static stops only) or "playback" (stops + animated vehicle)
+    const containerId = mode === "summary" ? "route-summary-map" : "route-playback-map";
+    const mapContainer = document.getElementById(containerId);
+    if (!mapContainer) return;
 
-                    return `<span class="playback-node ${isVehicle ? "is-vehicle" : ""} ${isDelivered ? "is-delivered" : ""}" style="left:${left}%; top:${top}%"></span>`;
-                })
-                .join("")}
-        </div>
-    `;
+    try {
+        const L = await loadLeaflet();
+        destroyMap();
+
+        // Cairo fallback coordinates
+        const defaultLat = 30.0444;
+        const defaultLng = 31.2357;
+
+        routeMapInstance = L.map(mapContainer, {
+            zoomControl: true,
+            attributionControl: false,
+        }).setView([defaultLat, defaultLng], 12);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19,
+        }).addTo(routeMapInstance);
+
+        const stopLatLngs = getRouteStopLatLngs(route);
+        const gpsLatLngs = getRouteGpsLatLngs(route);
+        const roadLatLngs = getRouteRoadLatLngs(route);
+        const pathLatLngs = roadLatLngs.length > 1
+            ? roadLatLngs
+            : mode === "playback" && gpsLatLngs.length > 1
+            ? gpsLatLngs
+            : stopLatLngs;
+
+        // ── Plot stop markers ──────────────────────────────────────────────
+        (route.stops || []).forEach((stop, index) => {
+            // Coordinates are guaranteed by the mapper (real DB or deterministic stub)
+            const lat = stop.lat;
+            const lng = stop.lng;
+            if (!isValidCoordinate(lat, lng)) return; // skip if somehow still null
+
+            const color = stop.delivered ? '#10b981' : '#94a3b8';
+            const html = '<div style="background:' + color + ';width:24px;height:24px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.25);font-size:11px">' + (index + 1) + '</div>';
+
+            const marker = L.marker([lat, lng], {
+                icon: L.divIcon({ className: 'route-stop-icon', html, iconSize: [24, 24], iconAnchor: [12, 12] }),
+                zIndexOffset: 700,
+            }).addTo(routeMapInstance);
+            marker.bindTooltip('Stop ' + (index + 1) + ' — ' + (stop.customer || ''), { direction: 'top', offset: [0, -12] });
+            routeMapMarkers.push(marker);
+        });
+
+        if (pathLatLngs.length === 0 && gpsLatLngs.length === 0) {
+            console.warn('[RouteMap] No stops with coordinates found for route', route.id);
+            return;
+        }
+
+        // ── Depot marker ───────────────────────────────────────────────────
+        const depotHtml = '<div style="background:#8b5cf6;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>';
+        const depotLatLng = stopLatLngs[0] || pathLatLngs[0] || gpsLatLngs[0];
+        L.marker(depotLatLng, {
+            icon: L.divIcon({ className: 'depot-icon', html: depotHtml, iconSize: [30, 30], iconAnchor: [15, 15] }),
+            zIndexOffset: 100,
+        }).addTo(routeMapInstance);
+
+        // ── Route polyline ─────────────────────────────────────────────────
+        if (pathLatLngs.length > 1) {
+            routeMapPolyline = L.polyline(pathLatLngs, { color: '#14b8a6', weight: 4, opacity: 0.75, dashArray: mode === 'summary' ? null : '8 4' }).addTo(routeMapInstance);
+        }
+
+        // ── Vehicle marker (playback only) ─────────────────────────────────
+        const vehicleLatLng = getVehicleStartLatLng(route, mode, pathLatLngs, gpsLatLngs);
+        if (vehicleLatLng) {
+            vehicleMarker = createVehicleMarker(L, vehicleLatLng).addTo(routeMapInstance);
+
+            if (mode === 'playback' && pathLatLngs.length > 1) {
+                updateVehiclePosition(
+                    Math.max(1, route.playbackFrames),
+                    state.modal?.playbackFrame || 1,
+                    pathLatLngs,
+                );
+            }
+        }
+
+        fitMapToPoints([...stopLatLngs, ...gpsLatLngs, ...roadLatLngs, vehicleLatLng].filter(Boolean));
+        setTimeout(() => routeMapInstance?.invalidateSize(), 0);
+
+    } catch (err) {
+        console.error('[RouteMap] Failed to init Leaflet:', err);
+    }
+}
+
+function getRouteStopLatLngs(route) {
+    return (route.stops || [])
+        .map((stop) => [Number(stop.lat), Number(stop.lng)])
+        .filter(([lat, lng]) => isValidCoordinate(lat, lng));
+}
+
+function getRouteGpsLatLngs(route) {
+    return (route.gpsTrail || [])
+        .map((point) => [Number(point.lat), Number(point.lng)])
+        .filter(([lat, lng]) => isValidCoordinate(lat, lng));
+}
+
+function getRouteRoadLatLngs(route) {
+    return (route.roadPath || [])
+        .map((point) => [Number(point.lat), Number(point.lng)])
+        .filter(([lat, lng]) => isValidCoordinate(lat, lng));
+}
+
+function getVehicleStartLatLng(route, mode, pathLatLngs, gpsLatLngs) {
+    const current = route.currentLocation;
+    if (current && isValidCoordinate(Number(current.lat), Number(current.lng))) {
+        return [Number(current.lat), Number(current.lng)];
+    }
+
+    if (mode === "summary") {
+        const progressFrame = Math.max(
+            1,
+            Math.round((route.progress / 100) * Math.max(1, route.playbackFrames)),
+        );
+        return interpolateLatLng(Math.max(1, route.playbackFrames), progressFrame, pathLatLngs);
+    }
+
+    return gpsLatLngs[0] || pathLatLngs[0] || null;
+}
+
+function createVehicleMarker(L, latLng) {
+    const vehicleHtml = '<div style="background:#f59e0b;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>';
+
+    return L.marker(latLng, {
+        icon: L.divIcon({ className: 'vehicle-icon', html: vehicleHtml, iconSize: [34, 34], iconAnchor: [17, 17] }),
+        zIndexOffset: 1000,
+    });
+}
+
+function fitMapToPoints(points) {
+    if (!routeMapInstance || !points.length) return;
+
+    if (points.length === 1) {
+        routeMapInstance.setView(points[0], 13);
+        return;
+    }
+
+    routeMapInstance.fitBounds(window.L.latLngBounds(points), { padding: [40, 40] });
+}
+
+function updateVehiclePosition(totalFrames, currentFrame, latLngs) {
+    if (!vehicleMarker || latLngs.length < 2) return;
+
+    const currentLatLng = interpolateLatLng(totalFrames, currentFrame, latLngs);
+    if (currentLatLng) {
+        vehicleMarker.setLatLng(currentLatLng);
+    }
+}
+
+function interpolateLatLng(totalFrames, currentFrame, latLngs) {
+    if (!latLngs.length) return null;
+    if (latLngs.length === 1) return latLngs[0];
+
+    // Simple interpolation along the path based on frame percentage
+    const percentage = Math.min(1, currentFrame / totalFrames);
+    
+    // Find which segment we are in
+    const totalSegments = latLngs.length - 1;
+    const exactSegment = percentage * totalSegments;
+    const segmentIndex = Math.min(Math.floor(exactSegment), totalSegments - 1);
+    const segmentPercentage = exactSegment - segmentIndex;
+    
+    const startPoint = latLngs[segmentIndex];
+    const endPoint = latLngs[segmentIndex + 1];
+    
+    // Leaflet LatLng objects use .lat/.lng, plain arrays use [0]/[1]
+    const startLat = startPoint.lat !== undefined ? startPoint.lat : startPoint[0];
+    const startLng = startPoint.lng !== undefined ? startPoint.lng : startPoint[1];
+    const endLat   = endPoint.lat   !== undefined ? endPoint.lat   : endPoint[0];
+    const endLng   = endPoint.lng   !== undefined ? endPoint.lng   : endPoint[1];
+    
+    const currentLat = startLat + (endLat - startLat) * segmentPercentage;
+    const currentLng = startLng + (endLng - startLng) * segmentPercentage;
+
+    return [currentLat, currentLng];
+}
+
+function isValidCoordinate(lat, lng) {
+    return Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+}
+
+function getRouteLinePoints(count) {
+    const points = [];
+    for (let i = 0; i < count; i++) {
+        points.push(20 + Math.sin(i * 1.5) * 12 + (i % 2) * 8);
+    }
+    return points;
 }
 
 function renderSummaryChart(route) {
-    const points = route.linePoints
+    const pointsArray = getRouteLinePoints(route.totalStops);
+    
+    // Dynamically calculate width so the dots aren't crammed if there are many stops
+    const chartWidth = Math.max(420, pointsArray.length * 60 + 40);
+
+    const pointsStr = pointsArray
         .map((point, index) => {
             const x = 20 + index * 60;
             const y = 100 - point * 2;
@@ -533,13 +772,13 @@ function renderSummaryChart(route) {
         .join(" ");
 
     return `
-        <svg viewBox="0 0 420 120" preserveAspectRatio="none" aria-hidden="true">
+        <svg viewBox="0 0 ${chartWidth} 120" preserveAspectRatio="xMinYMid slice" aria-hidden="true" style="width: 100%; min-width: ${chartWidth}px;">
             <polyline
                 fill="none"
                 stroke="#19c6c1"
                 stroke-width="3"
-                points="${points}" />
-            ${route.linePoints
+                points="${pointsStr}" />
+            ${pointsArray
                 .map((point, index) => {
                     const x = 20 + index * 60;
                     const y = 100 - point * 2;
@@ -663,7 +902,7 @@ function handleDateChange(event) {
     renderTable();
 }
 
-function handleTableClick(event) {
+async function handleTableClick(event) {
     const trigger = event.target.closest("[data-route-id], [data-action='open-route']");
     if (!trigger) {
         return;
@@ -674,7 +913,7 @@ function handleTableClick(event) {
         trigger.closest("[data-route-id]")?.dataset.routeId;
 
     if (routeId) {
-        openDetailsModal(routeId);
+        await openDetailsModal(routeId);
     }
 }
 
@@ -738,6 +977,16 @@ function handleModalClick(event) {
             } else {
                 startRoutePlayback();
             }
+            
+            // Update button UI directly
+            const iconElem = actionButton.querySelector("i");
+            const textElem = actionButton.querySelector("span");
+            if (iconElem && textElem) {
+                const isPlaying = state.modal?.isPlaying;
+                iconElem.setAttribute("data-lucide", isPlaying ? "pause" : "play");
+                textElem.textContent = isPlaying ? "Pause" : "Play";
+                refreshIcons();
+            }
             return;
         }
 
@@ -745,21 +994,38 @@ function handleModalClick(event) {
             const speed = Number(actionButton.dataset.speed);
             if (!Number.isNaN(speed)) {
                 setRoutePlaybackSpeed(speed);
+                // Update speed UI directly
+                const speedChips = document.querySelectorAll(".speed-chip");
+                speedChips.forEach(chip => {
+                    if (Number(chip.dataset.speed) === speed) {
+                        chip.classList.add("is-active");
+                    } else {
+                        chip.classList.remove("is-active");
+                    }
+                });
             }
             return;
         }
     }
 }
 
-function handleModalSubmit(event) {
+async function handleModalSubmit(event) {
     if (event.target.id !== "new-route-form") {
         return;
     }
 
     event.preventDefault();
+    
+    // Show loading text on button
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Creating...";
+    }
+
     const formData = new FormData(event.target);
-    RoutesApi.createRoute(Object.fromEntries(formData.entries()));
-    state.routes = RoutesApi.getRoutes();
+    await RoutesApi.createRoute(Object.fromEntries(formData.entries()));
+    state.routes = await RoutesApi.getRoutes();
     state.currentPage = 1;
     closeModal();
     renderPage();
@@ -773,14 +1039,11 @@ function clearRoutePlaybackTimer() {
 }
 
 function startRoutePlayback() {
-    if (!state.modal || !state.modal.routeId) {
+    if (!state.modal || !state.modal.routeData) {
         return;
     }
 
-    const route = RoutesApi.getRouteById(state.modal.routeId);
-    if (!route) {
-        return;
-    }
+    const route = state.modal.routeData;
 
     state.modal.isPlaying = true;
     clearRoutePlaybackTimer();
@@ -789,8 +1052,17 @@ function startRoutePlayback() {
         const maxFrame = Math.max(1, route.playbackFrames);
         const nextFrame = state.modal.playbackFrame >= maxFrame ? 1 : state.modal.playbackFrame + state.modal.playbackSpeed;
         state.modal.playbackFrame = Math.min(nextFrame, maxFrame);
-        renderModal();
-        refreshIcons();
+        
+        // Update vehicle position on map if it exists
+        if (routeMapPolyline && vehicleMarker) {
+            updateVehiclePosition(maxFrame, state.modal.playbackFrame, routeMapPolyline.getLatLngs());
+        }
+        
+        // Update DOM text for frame counter
+        const frameTextElem = document.getElementById("playback-frame-counter");
+        if (frameTextElem) {
+            frameTextElem.textContent = `Frame ${state.modal.playbackFrame} / ${route.playbackFrames} - ${route.eventTime}`;
+        }
     }, 500);
 }
 
@@ -801,8 +1073,16 @@ function stopRoutePlayback() {
 
     state.modal.isPlaying = false;
     clearRoutePlaybackTimer();
-    renderModal();
-    refreshIcons();
+
+    // Update button UI directly without re-rendering the whole modal (which would destroy the map)
+    const playBtn = document.querySelector('[data-action="toggle-play"]');
+    if (playBtn) {
+        const iconElem = playBtn.querySelector('i');
+        const textElem = playBtn.querySelector('span');
+        if (iconElem) iconElem.setAttribute('data-lucide', 'play');
+        if (textElem) textElem.textContent = 'Play';
+        refreshIcons();
+    }
 }
 
 function setRoutePlaybackSpeed(speed) {
@@ -813,10 +1093,8 @@ function setRoutePlaybackSpeed(speed) {
     state.modal.playbackSpeed = speed;
     if (state.modal.isPlaying) {
         startRoutePlayback();
-    } else {
-        renderModal();
-        refreshIcons();
     }
+    // No renderModal() needed - speed chip classes are updated directly by handleModalClick
 }
 
 function handleExport() {
@@ -848,11 +1126,20 @@ function handleExport() {
     URL.revokeObjectURL(url);
 }
 
-function openDetailsModal(routeId) {
+async function openDetailsModal(routeId) {
     clearRoutePlaybackTimer();
+    
+    // Fetch detailed data from backend (includes full stop list)
+    let routeData = await RoutesApi.getRouteById(routeId);
+
+    // Fallback to locally cached route if API fails
+    if (!routeData) {
+        routeData = state.routes.find((r) => r.id === routeId) || null;
+    }
 
     state.modal = {
         routeId,
+        routeData,
         tab: "stops",
         type: "details",
         playbackFrame: 1,
@@ -863,16 +1150,16 @@ function openDetailsModal(routeId) {
     refreshIcons();
 }
 
-function openRouteFromLiveMonitoring() {
+async function openRouteFromLiveMonitoring() {
     const routeId = sessionStorage.getItem("fleetops-live-selected-route");
     if (!routeId) {
         return;
     }
 
     sessionStorage.removeItem("fleetops-live-selected-route");
-    const route = RoutesApi.getRouteById(routeId);
+    const route = await RoutesApi.getRouteById(routeId);
     if (route) {
-        openDetailsModal(routeId);
+        await openDetailsModal(routeId);
     }
 }
 

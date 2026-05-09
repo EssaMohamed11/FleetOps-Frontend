@@ -161,4 +161,16 @@
     color: var(--color-text-muted);
 }
 
+.table-loading, .table-error, .table-empty {
+    text-align: center;
+    padding: 3rem !important;
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+.table-error {
+    color: var(--color-danger);
+    font-weight: 500;
+}
+
 

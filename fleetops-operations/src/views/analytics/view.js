@@ -1,4 +1,4 @@
-import { KPI_DATA, MONTHLY_CHART_DATA, FLEET_STATUS, DRIVER_PERF, TABLE_DATA, CO2_REPORT_DATA, FUEL_AUDIT_DATA, MAINTENANCE_COST_DATA, MAINTENANCE_SUMMARY_DATA } from "../../services/storage/analyticsData.js";
+import AnalyticsStorage from "../../services/api/analytics.js";
 import { createIcons, icons } from "../../../../node_modules/lucide/dist/esm/lucide.mjs";
 import { settingsMockData } from "../../services/storage/settings.js";
 
@@ -55,10 +55,10 @@ function refreshIcons() {
   window.__refreshIcons?.();
 }
 
-function renderKPIs(root, range) {
+async function renderKPIs(root, range) {
   const container = root.querySelector('#analytics-kpi-grid');
   if (!container) return;
-  const data = KPI_DATA[range] || KPI_DATA["30d"];
+  const data = await AnalyticsStorage.getKpiData(range);
 
   container.innerHTML = data.map(kpi => `
     <div class="kpi-card">
@@ -76,23 +76,26 @@ function renderKPIs(root, range) {
     </div>
   `).join('');
 
-  refreshIcons()
+  refreshIcons();
 }
 
-function renderMonthlyChart(root) {
+async function renderMonthlyChart(root) {
   const container = root.querySelector('#monthly-chart');
   if (!container) return;
 
-  const maxVal = Math.max(...MONTHLY_CHART_DATA.revenue);
+  const data = await AnalyticsStorage.getMonthlyChartData();
+  if (!data.revenue || data.revenue.length === 0) return;
 
-  container.innerHTML = MONTHLY_CHART_DATA.labels.map((label, i) => {
-    const revenue = MONTHLY_CHART_DATA.revenue[i];
-    const cost = MONTHLY_CHART_DATA.costs[i];
-    const revHeight = (revenue / maxVal) * 100;
-    const costHeight = (cost / maxVal) * 100;
+  const maxVal = Math.max(...data.revenue);
+
+  container.innerHTML = data.labels.map((label, i) => {
+    const revenue = data.revenue[i];
+    const cost = data.costs[i];
+    const revHeight = maxVal > 0 ? (revenue / maxVal) * 100 : 0;
+    const costHeight = maxVal > 0 ? (cost / maxVal) * 100 : 0;
     
     const profit = revenue - cost;
-    const profitPercentage = ((profit / revenue) * 100).toFixed(1);
+    const profitPercentage = revenue > 0 ? ((profit / revenue) * 100).toFixed(1) : 0;
     const isProfit = profit >= 0;
     const colorClass = isProfit ? 'profit-green' : 'loss-red';
     const sign = isProfit ? '+' : '';
@@ -112,17 +115,18 @@ function renderMonthlyChart(root) {
   refreshIcons();
 }
 
-function renderFleetStatus(root) {
+async function renderFleetStatus(root) {
   const donut = root.querySelector('#fleet-donut');
   const legend = root.querySelector('#fleet-legend');
   if (!donut || !legend) return;
 
-  const total = FLEET_STATUS.reduce((sum, s) => sum + s.count, 0);
+  const data = await AnalyticsStorage.getFleetStatus();
+  const total = data.reduce((sum, s) => sum + s.count, 0);
   let conicGradient = [];
   let currentPercent = 0;
 
-  const legendHTML = FLEET_STATUS.map(status => {
-    const percent = (status.count / total) * 100;
+  const legendHTML = data.map(status => {
+    const percent = total > 0 ? (status.count / total) * 100 : 0;
     conicGradient.push(`${status.color} ${currentPercent}% ${currentPercent + percent}%`);
     currentPercent += percent;
     return `
@@ -134,35 +138,23 @@ function renderFleetStatus(root) {
     `;
   }).join('');
 
-  donut.style.background = `conic-gradient(${conicGradient.join(', ')})`;
+  donut.style.background = conicGradient.length > 0 ? `conic-gradient(${conicGradient.join(', ')})` : 'transparent';
   legend.innerHTML = legendHTML;
 
   refreshIcons();
 }
 
-function renderDriverPerf(root) {
+async function renderDriverPerf(root) {
   const tbody = root.querySelector('#driver-perf-tbody');
   if (!tbody) return;
 
-  const weights = settingsMockData.kpiWeights;
-  const speedW = weights.deliverySpeed / 100;
-  const fuelW = weights.fuelEfficiency / 100;
-  const ratingW = weights.customerRating / 100;
-
   const formulaCard = root.querySelector('.formula-card');
   if (formulaCard) {
+    const weights = settingsMockData.kpiWeights;
     formulaCard.textContent = `Score Formula: Speed (${weights.deliverySpeed}%) + Fuel Efficiency (${weights.fuelEfficiency}%) + Customer Rating (${weights.customerRating}%)`;
   }
 
-  const driversData = DRIVER_PERF.labels.map((name, i) => {
-    const fuel = DRIVER_PERF.efficiency[i];
-    const speed = DRIVER_PERF.safety[i]; 
-    const rating = parseFloat(((fuel + speed) / 40).toFixed(1)); // Mock rating out of 5
-    const score = Math.round((speed * speedW) + (fuel * fuelW) + ((rating / 5 * 100) * ratingW));
-    return { name, speed, fuel, rating, score };
-  });
-
-  driversData.sort((a, b) => b.score - a.score);
+  const driversData = await AnalyticsStorage.getDriverPerformance();
 
   tbody.innerHTML = driversData.map((d, index) => {
     return `
@@ -184,7 +176,8 @@ function renderTable(root) {
   const tbody = root.querySelector('#analytics-table-body');
   if (!tbody) return;
 
-  tbody.innerHTML = TABLE_DATA.slice(0, 10).map(row => {
+  const tableData = AnalyticsStorage.getTableData();
+  tbody.innerHTML = tableData.slice(0, 10).map(row => {
     const statusClass = `status-${row.status.replace(/\s+/g, '')}`;
     return `
       <tr>
@@ -202,11 +195,13 @@ function renderTable(root) {
   refreshIcons();
 }
 
-function renderCO2Report(root) {
+async function renderCO2Report(root) {
   const tbody = root.querySelector('#co2-tbody');
   if (!tbody) return;
 
-  tbody.innerHTML = CO2_REPORT_DATA.map(row => {
+  const data = await AnalyticsStorage.getCO2ReportData();
+
+  tbody.innerHTML = data.map(row => {
     const statusClass = row.status === 'Excellent' || row.status === 'Good' ? 'status-Optimal' : (row.status === 'Poor' ? 'status-NeedsReview' : 'status-HighUsage');
     const reductionClass = row.reduction >= 0 ? 'profit-green' : 'loss-red';
     const reductionSign = row.reduction > 0 ? '+' : '';
@@ -222,11 +217,13 @@ function renderCO2Report(root) {
   }).join('');
 }
 
-function renderFuelAudit(root) {
+async function renderFuelAudit(root) {
   const tbody = root.querySelector('#fuel-tbody');
   if (!tbody) return;
 
-  tbody.innerHTML = FUEL_AUDIT_DATA.map(row => {
+  const data = await AnalyticsStorage.getFuelAuditData();
+
+  tbody.innerHTML = data.map(row => {
     const isFlagged = row.status === 'Flagged';
     const rowClass = isFlagged ? 'row-flagged' : '';
     const discrepancyClass = isFlagged ? 'text-red' : '';
@@ -249,16 +246,18 @@ function renderFuelAudit(root) {
   }).join('');
 }
 
-function renderMaintenanceCost(root) {
+async function renderMaintenanceCost(root) {
   // Render Summary Cards
   const totalEl = root.querySelector('#maintenance-total');
   const preventiveEl = root.querySelector('#maintenance-preventive');
   const reactiveEl = root.querySelector('#maintenance-reactive');
 
+  const data = await AnalyticsStorage.getMaintenanceCostData();
+
   if (totalEl && preventiveEl && reactiveEl) {
-    const { total, preventive, reactive, currency } = MAINTENANCE_SUMMARY_DATA;
-    const prevPct = Math.round((preventive / total) * 100);
-    const reactPct = Math.round((reactive / total) * 100);
+    const { total, preventive, reactive, currency } = data.summary;
+    const prevPct = total > 0 ? Math.round((preventive / total) * 100) : 0;
+    const reactPct = total > 0 ? Math.round((reactive / total) * 100) : 0;
 
     totalEl.textContent = `${currency} ${total.toLocaleString()}`;
     preventiveEl.textContent = `${currency} ${preventive.toLocaleString()} (${prevPct}%)`;
@@ -269,7 +268,7 @@ function renderMaintenanceCost(root) {
   const tbody = root.querySelector('#maintenance-tbody');
   if (!tbody) return;
 
-  tbody.innerHTML = MAINTENANCE_COST_DATA.map(row => {
+  tbody.innerHTML = data.table.map(row => {
     const statusClass = row.status === 'Completed' ? 'status-Optimal' : 'status-HighUsage';
     return `
       <tr>
@@ -283,4 +282,4 @@ function renderMaintenanceCost(root) {
       </tr>
     `;
   }).join('');
-    }
+}

@@ -1,17 +1,29 @@
+import api from "/shared/api-handler.js";
 import {
     COD_COLLECTION_FILTERS,
     COD_HANDOVER_FILTERS,
-    codRecordsSeed,
 } from "../storage/cod-management.js";
 
-const codRecords = clone(codRecordsSeed);
+const API_BASE = "http://localhost:8000/api/v1";
 
-function getRecords() {
-    return clone(codRecords);
+async function getRecords() {
+    try {
+        const response = await api.get(`${API_BASE}/cod`);
+        return response.data?.data || [];
+    } catch (error) {
+        console.error("Failed to fetch COD records:", error);
+        return [];
+    }
 }
 
-function getRecordById(recordId) {
-    return clone(codRecords.find((record) => record.id === recordId) ?? null);
+async function getRecordById(recordId) {
+    try {
+        const response = await api.get(`${API_BASE}/cod/${recordId}`);
+        return response.data?.data || null;
+    } catch (error) {
+        console.error(`Failed to fetch COD record ${recordId}:`, error);
+        return null;
+    }
 }
 
 function getCollectionFilters() {
@@ -22,22 +34,14 @@ function getHandoverFilters() {
     return [...COD_HANDOVER_FILTERS];
 }
 
-function markHandedOver(recordId) {
-    const target = codRecords.find((record) => record.id === recordId);
-    if (!target || target.collectedAmount <= 0) {
-        return clone(target ?? null);
+async function markHandedOver(recordId) {
+    try {
+        const response = await api.patch(`${API_BASE}/cod/${recordId}/handover`);
+        return response.data?.data || null;
+    } catch (error) {
+        console.error(`Failed to mark handover for ${recordId}:`, error);
+        return null;
     }
-
-    target.handoverStatus = "Handed Over";
-    target.handedOverAt = target.handedOverAt || "Apr 14, 04:10 PM";
-    target.receivedBy = target.receivedBy || "Finance - Mariam Fawzy";
-    target.receiptNumber = target.receiptNumber || `REC-${8000 + Number(recordId.split("-")[1])}`;
-
-    return clone(target);
-}
-
-function clone(value) {
-    return JSON.parse(JSON.stringify(value));
 }
 
 const CodManagementApi = {

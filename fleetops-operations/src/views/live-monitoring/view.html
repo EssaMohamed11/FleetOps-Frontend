@@ -31,40 +31,15 @@
 
             <div class="live-monitoring-map" id="live-monitoring-map"></div>
 
-            <footer class="live-monitoring-timeline">
+            <footer class="live-monitoring-timeline live-monitoring-timeline--current">
                 <div class="live-monitoring-date-input">
-                    <i data-lucide="calendar-days"></i>
-                    <input id="live-monitoring-date-input" type="date" />
-                    <button
-                        class="live-monitoring-date-input__icon"
-                        id="live-monitoring-date-picker-trigger"
-                        type="button"
-                        aria-label="Open date picker">
-                        <i data-lucide="calendar-range"></i>
-                    </button>
+                    <i data-lucide="satellite"></i>
+                    <span>Latest GPS positions</span>
                 </div>
 
-                <input
-                    id="live-monitoring-frame-range"
-                    class="live-monitoring-frame-range"
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="1"
-                    value="100" />
-
-                <div class="live-monitoring-controls">
-                    <button class="timeline-icon-btn" id="live-monitoring-play-btn" type="button" aria-label="Play timeline">
-                        <i data-lucide="play"></i>
-                    </button>
-                    <button class="timeline-icon-btn" id="live-monitoring-pause-btn" type="button" aria-label="Pause timeline">
-                        <i data-lucide="pause"></i>
-                    </button>
-                    <select id="live-monitoring-speed-select" aria-label="Playback speed"></select>
-                    <a href="/routes" data-link class="timeline-icon-btn" id="live-monitoring-view-routes-btn" type="button" aria-label="View routes" title="View Routes">
-                        <i data-lucide="navigation"></i>
-                    </a>
-                </div>
+                <a href="/routes" data-link class="timeline-icon-btn" id="live-monitoring-view-routes-btn" aria-label="View routes" title="View Routes">
+                    <i data-lucide="navigation"></i>
+                </a>
             </footer>
         </section>
 

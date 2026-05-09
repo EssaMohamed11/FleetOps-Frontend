@@ -1,31 +1,69 @@
-import AlertData from "../../services/storage/alerts.js";
+import AlertsApi from "../../services/api/alerts.js";
+
+// ─── In-memory state (replaces mutable storage import) ───────────────────────
+// Holds the live data fetched from the API; mutated locally for optimistic UI.
+let _data = { odometer: [], insurance: [], inspection: [], parts: [] };
+
+// ─── Mount / Unmount ──────────────────────────────────────────────────────────
 
 export function mount() {
-    const data = AlertData; // Directly use the imported storage object
     initTabs();
-    renderOdometer(data.odometer);
-    renderInsurance(data.insurance);
-    renderInspection(data.inspection);
-    renderParts(data.parts);
-    updateBadges(data);
+    setLoading(true);
+
+    AlertsApi.getAllAlerts()
+        .then(function (data) {
+            _data = data;
+            setLoading(false);
+            renderOdometer(_data.odometer);
+            renderInsurance(_data.insurance);
+            renderInspection(_data.inspection);
+            renderParts(_data.parts);
+            updateBadges(_data);
+        })
+        .catch(function (err) {
+            console.error("[Alerts view] Failed to load alerts:", err);
+            setLoading(false);
+        });
 }
 
 export function unmount() {
-    // For this specific view, all listeners are on local elements
-    // which are automatically removed from memory when the DOM is cleared.
-    // No explicit cleanup is required currently.
+    // All listeners are on local elements and are released with the DOM.
     console.log("Alerts & Inspections view unmounted");
 }
 
-// ─── SPA Navigation helper ───────────────────────────────────────────────────
+// ─── Loading state ────────────────────────────────────────────────────────────
+
+function setLoading(active) {
+    // Show/hide a loading indicator inside each table body while the API call is in flight.
+    const tbodies = ["odometer-table-body", "insurance-table-body", "inspection-table-body", "parts-table-body"];
+    tbodies.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (active) {
+            el.innerHTML = `<tr><td colspan="7" class="table-loading">Loading…</td></tr>`;
+        }
+    });
+}
+
+// ─── SPA Navigation helper ────────────────────────────────────────────────────
+
 function navigate(path) {
     window.history.pushState({}, "", path);
     window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
-function renderOdometer(alerts){
-    const tbody = document.getElementById("odometer-table-body")
-    tbody.innerHTML = alerts.map(alert => ` 
+// ─── Render: Odometer ─────────────────────────────────────────────────────────
+
+function renderOdometer(alerts) {
+    const tbody = document.getElementById("odometer-table-body");
+    if (!tbody) return;
+
+    if (!alerts || alerts.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="table-empty">No odometer alerts.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = alerts.map((alert) => `
         <tr>
             <td>
                 <div class="vehicle-cell">
@@ -45,16 +83,23 @@ function renderOdometer(alerts){
             </td>
         </tr>`).join('');
 
-    tbody.querySelectorAll('.work-order-btn').forEach(btn => {
+    tbody.querySelectorAll('.work-order-btn').forEach((btn) => {
         btn.addEventListener('click', () => navigate('/work-orders'));
     });
 }
+
+// ─── Render: Insurance ────────────────────────────────────────────────────────
 
 function renderInsurance(alerts) {
     const tbody = document.getElementById('insurance-table-body');
     if (!tbody) return;
 
-    tbody.innerHTML = alerts.map(alert => `
+    if (!alerts || alerts.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="table-empty">No insurance alerts.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = alerts.map((alert) => `
         <tr>
             <td>
                 <div class="vehicle-cell">
@@ -72,24 +117,37 @@ function renderInsurance(alerts) {
         </tr>
     `).join('');
 
-    tbody.querySelectorAll('.mark-renewed-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+    tbody.querySelectorAll('.mark-renewed-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
             const id = btn.dataset.id;
-            const alert = AlertData.insurance.find(a => a.id === id);
-            if (alert) {
-                alert.status = "success";
+
+            // Optimistic UI: mark locally and re-render immediately
+            const item = _data.insurance.find((a) => a.id === id);
+            if (item) item.status = "success";
+            renderInsurance(_data.insurance);
+            updateBadges(_data);
+
+            // Persist to backend
+            const result = await AlertsApi.renewInsurance(id);
+            if (!result?.success) {
+                console.warn("[Alerts] renewInsurance API call failed for id:", id);
             }
-            renderInsurance(AlertData.insurance);
-            updateBadges(AlertData);
         });
     });
 }
+
+// ─── Render: Inspection ───────────────────────────────────────────────────────
 
 function renderInspection(alerts) {
     const tbody = document.getElementById('inspection-table-body');
     if (!tbody) return;
 
-    tbody.innerHTML = alerts.map(alert => `
+    if (!alerts || alerts.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="table-empty">No inspection alerts.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = alerts.map((alert) => `
         <tr class="${alert.status === 'success' ? 'row-completed' : ''}">
             <td>
                 <div class="vehicle-cell">
@@ -107,24 +165,37 @@ function renderInspection(alerts) {
         </tr>
     `).join('');
 
-    tbody.querySelectorAll('.mark-complete-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+    tbody.querySelectorAll('.mark-complete-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
             const id = btn.dataset.id;
-            const alert = AlertData.inspection.find(a => a.id === id);
-            if (alert) {
-                alert.status = "success";
+
+            // Optimistic UI
+            const item = _data.inspection.find((a) => a.id === id);
+            if (item) item.status = "success";
+            renderInspection(_data.inspection);
+            updateBadges(_data);
+
+            // Persist to backend
+            const result = await AlertsApi.completeInspection(id);
+            if (!result?.success) {
+                console.warn("[Alerts] completeInspection API call failed for id:", id);
             }
-            renderInspection(AlertData.inspection);
-            updateBadges(AlertData);
         });
     });
 }
+
+// ─── Render: Parts ────────────────────────────────────────────────────────────
 
 function renderParts(alerts) {
     const tbody = document.getElementById('parts-table-body');
     if (!tbody) return;
 
-    tbody.innerHTML = alerts.map(alert => `
+    if (!alerts || alerts.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="table-empty">No parts alerts.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = alerts.map((alert) => `
         <tr>
             <td>
                 <div class="vehicle-cell">
@@ -143,38 +214,42 @@ function renderParts(alerts) {
         </tr>
     `).join('');
 
-    tbody.querySelectorAll('.work-order-btn').forEach(btn => {
+    tbody.querySelectorAll('.work-order-btn').forEach((btn) => {
         btn.addEventListener('click', () => navigate('/work-orders'));
     });
 }
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
 
 function initTabs() {
     const tabs = document.querySelectorAll('.tab-item');
     const contents = document.querySelectorAll('.tab-content');
 
-    tabs.forEach(tab => {
+    tabs.forEach((tab) => {
         tab.addEventListener('click', () => {
             const target = tab.getAttribute('data-tab');
 
-            tabs.forEach(t => t.classList.remove('active'));
+            tabs.forEach((t) => t.classList.remove('active'));
             tab.classList.add('active');
 
-            contents.forEach(content => {
+            contents.forEach((content) => {
                 content.style.display = content.id === `${target}-content` ? 'block' : 'none';
             });
         });
     });
 }
 
+// ─── Badge counts ─────────────────────────────────────────────────────────────
+
 function updateBadges(data) {
     const badges = {
-        odometer:   data.odometer.filter(a => a.status !== 'success').length,
-        insurance:  data.insurance.filter(a => a.status !== 'success').length,
-        inspection: data.inspection.filter(a => a.status !== 'success').length,
-        parts:      data.parts.filter(a => a.status !== 'success').length
+        odometer:   data.odometer.filter((a) => a.status !== 'success').length,
+        insurance:  data.insurance.filter((a) => a.status !== 'success').length,
+        inspection: data.inspection.filter((a) => a.status !== 'success').length,
+        parts:      data.parts.filter((a) => a.status !== 'success').length,
     };
 
-    Object.keys(badges).forEach(type => {
+    Object.keys(badges).forEach((type) => {
         const tab = document.querySelector(`.tab-item[data-tab="${type}"] .tab-badge`);
         if (tab) tab.textContent = badges[type];
     });

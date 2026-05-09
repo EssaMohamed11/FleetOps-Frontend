@@ -158,6 +158,15 @@ export const routes = [
             js: "/src/views/preview-page/view.js",
         },
     },
+    {
+        path: "/login",
+        title: "Login",
+        view: {
+            html: "/src/views/login/view.html",
+            css: "/src/views/login/view.css",
+            js: "/src/views/login/view.js",
+        },
+    },
 ];
 
 export const notFoundRoute = {

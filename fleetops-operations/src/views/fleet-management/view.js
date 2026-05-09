@@ -779,3 +779,12 @@ if (document.readyState === 'loading') {
 } else {
   initFleetManagement();
 }
+
+export function unmount() {
+    // Remove all document-level listeners added during mount
+    _docListeners.forEach(({ type, fn, opts }) => {
+        document.removeEventListener(type, fn, opts);
+    });
+    _docListeners.length = 0;
+    destroyCharts();
+}

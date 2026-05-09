@@ -11,8 +11,34 @@ export function initRouter({ outletId }) {
 
     async function renderCurrentRoute() {
         const currentPath = normalizePath(window.location.pathname);
+        const token = localStorage.getItem("token");
+
+        // ─── Route Guard (نظام الحماية) ──────────────────────────────────
+
+        // 1. إذا لم يكن مسجل الدخول ويحاول فتح أي صفحة -> توجيه لصفحة تسجيل الدخول
+        if (!token && currentPath !== "/login") {
+            navigateTo("/login");
+            return;
+        }
+
+        // 2. إذا كان مسجل الدخول ويحاول فتح صفحة تسجيل الدخول -> توجيه للوحة التحكم
+        if (token && currentPath === "/login") {
+            navigateTo("/");
+            return;
+        }
+        // ─────────────────────────────────────────────────────────────────
+
         const activeRoute =
             routes.find((route) => route.path === currentPath) ?? notFoundRoute;
+
+        // ─── Layout Toggle (تعديل الهيكل الخارجي لصفحة الدخول) ────────────
+        const shell = document.querySelector("[data-shell]");
+        if (activeRoute.path === "/login") {
+            shell?.classList.add("is-login-layout");
+        } else {
+            shell?.classList.remove("is-login-layout");
+        }
+        // ─────────────────────────────────────────────────────────────────
 
         if (currentRouteModule?.unmount) {
             currentRouteModule.unmount(outlet);
@@ -41,7 +67,14 @@ export function initRouter({ outletId }) {
         currentRouteStylesheet = stylesheet;
         document.title = activeRoute.title;
         outlet.innerHTML = html;
-        document.getElementById("nav-title").textContent = activeRoute.title;
+
+        // تحديث عنوان الـ Topbar فقط إذا لم نكن في صفحة تسجيل الدخول
+        if (activeRoute.path !== "/login") {
+            const navTitle = document.getElementById("nav-title");
+            if (navTitle) {
+                navTitle.textContent = activeRoute.title;
+            }
+        }
 
         const routeModule = await import(`${activeRoute.view.js}${cacheBuster}`);
         currentRouteModule = routeModule;
@@ -80,6 +113,7 @@ export function initRouter({ outletId }) {
 
         const href = link.getAttribute("href");
 
+        // تجاهل الروابط الخارجية
         if (!href || href.startsWith("http")) {
             return;
         }
@@ -114,6 +148,7 @@ export function initRouter({ outletId }) {
     document.addEventListener("click", handleLinkNavigation);
     window.addEventListener("popstate", handlePopState);
 
+    // Initial render
     renderCurrentRoute().catch(handleRenderError);
 
     return {

@@ -2,12 +2,37 @@ import api from "/shared/api-handler.js";
 
 // ─── Global Setup ─────────────────────────────────────────────────────────────
 
-api.setBaseURL("http://localhost:8000/api/v1/");
+// Explicit base URL to avoid conflicts with other modules
+const API_BASE = "http://localhost:8000/api/v1";
+const CAIRO_LAT = 30.0444;
+const CAIRO_LNG = 31.2357;
+
+function fallbackOrderCoords(orderId, seed = 0) {
+    const numericId = toNumber(orderId, seed + 1);
+    const angle = ((numericId % 12) / 12) * 2 * Math.PI;
+    const radius = 0.018 + (numericId % 7) * 0.004;
+
+    return {
+        lat: CAIRO_LAT + Math.sin(angle) * radius,
+        lng: CAIRO_LNG + Math.cos(angle) * radius,
+    };
+}
 
 // normalize functions to handle different API response formats and ensure consistent data structure across the app.
 function toNumber(value, fallback = 0) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function toCoordinate(value, fallback, min, max) {
+    if (value === null || value === undefined || String(value).trim() === "") {
+        return fallback;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= min && parsed <= max
+        ? parsed
+        : fallback;
 }
 
 function normalizeWindow(order) {
@@ -16,6 +41,7 @@ function normalizeWindow(order) {
 
 function normalizeOrder(rawOrder) {
     const orderId = rawOrder?.OrderID ?? rawOrder?.id;
+    const fallbackCoords = fallbackOrderCoords(orderId);
     const customerName =
         rawOrder?.customer?.user?.name ||
         rawOrder?.customer?.name ||
@@ -50,8 +76,18 @@ function normalizeOrder(rawOrder) {
             50,
         ),
         selected: Boolean(rawOrder?.selected),
-        lat: toNumber(rawOrder?.Latitude ?? rawOrder?.lat, 24.7136),
-        lng: toNumber(rawOrder?.Longitude ?? rawOrder?.lng, 46.6753),
+        lat: toCoordinate(
+            rawOrder?.Latitude ?? rawOrder?.lat,
+            fallbackCoords.lat,
+            -90,
+            90,
+        ),
+        lng: toCoordinate(
+            rawOrder?.Longitude ?? rawOrder?.lng,
+            fallbackCoords.lng,
+            -180,
+            180,
+        ),
     };
 
     return normalized;
@@ -126,16 +162,17 @@ async function getAreas(orders = null) {
  * Get all vehicles
  * @returns {Promise<Array>} List of vehicles
  */
-async function getVehicles() {
+async function getVehicles(area = "All") {
     try {
-        const { data } = await api.get("dispatch/vehicles/available");
+        const { data } = await api.get(`${API_BASE}/dispatch/vehicles/available`);
         const vehicles = Array.isArray(data?.data)
             ? data.data.map(normalizeVehicle)
             : [];
-        // console.log(vehicles);
 
         if (vehicles.length > 0) {
-            return vehicles;
+            return area === "All"
+                ? vehicles
+                : vehicles.filter((v) => v.area === area);
         }
     } catch (error) {
         console.warn(
@@ -144,7 +181,7 @@ async function getVehicles() {
         );
     }
 
-    return VEHICLES.map((vehicle) => ({ ...vehicle }));
+    return [];
 }
 
 /**
@@ -153,7 +190,7 @@ async function getVehicles() {
  */
 async function getDrivers() {
     try {
-        const { data } = await api.get("users/drivers/Available");
+        const { data } = await api.get(`${API_BASE}/users/drivers/Available`);
         const drivers = Array.isArray(data?.data)
             ? data.data.map(normalizeDriver)
             : [];
@@ -163,12 +200,12 @@ async function getDrivers() {
         }
     } catch (error) {
         console.warn(
-            "Failed to fetch drivers from API, using mock data",
+            "Failed to fetch drivers from API",
             error,
         );
     }
 
-    return DRIVERS.map((driver) => ({ ...driver }));
+    return [];
 }
 
 /**
@@ -179,15 +216,15 @@ async function getOrders(filters = {}) {
     let orders = [];
 
     try {
-        const { data } = await api.get("orders/Pending");
+        const { data } = await api.get(`${API_BASE}/orders/Pending`);
         const rawOrders = Array.isArray(data?.data) ? data.data : [];
         orders = rawOrders.map(normalizeOrder);
     } catch (error) {
         console.error(
-            "Failed to fetch pending orders from API, using mock orders",
+            "Failed to fetch pending orders from API",
             error,
         );
-        orders = MOCK_ORDERS.map(normalizeOrder);
+        orders = [];
     }
 
     if (!filters || Object.keys(filters).length === 0) {
@@ -268,7 +305,7 @@ async function sortOrdersByPriority(orders) {
     }
 
     try {
-        const { data } = await api.post("dispatch/priority-score", {
+        const { data } = await api.post(`${API_BASE}/dispatch/priority-score`, {
             order_ids: orderIds,
         });
 
@@ -317,7 +354,7 @@ async function createGeoClusters(orders) {
         .filter((id) => Number.isFinite(id));
 
     try {
-        const { data } = await api.post("dispatch/cluster-orders", {
+        const { data } = await api.post(`${API_BASE}/dispatch/cluster-orders`, {
             order_ids: orderIds,
         });
 
@@ -335,7 +372,6 @@ async function createGeoClusters(orders) {
             "Cluster orders endpoint failed, using local grouping",
             error,
         );
-        alert("Cluster orders endpoint failed, using local grouping");
         const groups = {};
         orders.forEach((order) => {
             if (!groups[order.address]) {
@@ -487,6 +523,7 @@ function mapOptimizedStops(orderedStops, orderLookup, startDate) {
         const etaDate = parseApiDateTime(stop?.eta_datetime);
         const etaHour = etaDate ? etaDate.getHours() : null;
         const windowEnd = parseWindowEndHour(sourceOrder.window);
+        const fallbackCoords = fallbackOrderCoords(orderId);
 
         return {
             num: toNumber(stop?.stop_no, 0),
@@ -501,8 +538,20 @@ function mapOptimizedStops(orderedStops, orderLookup, startDate) {
                     : Number.isFinite(windowEnd)
                       ? etaHour < windowEnd
                       : true,
-            latitude: toNumber(stop?.latitude ?? sourceOrder.lat),
-            longitude: toNumber(stop?.longitude ?? sourceOrder.lng),
+            latitude: toCoordinate(
+                stop?.latitude ?? sourceOrder.lat,
+                sourceOrder.lat ?? fallbackCoords.lat,
+                -90,
+                90,
+            ),
+            longitude: toCoordinate(
+                stop?.longitude ?? sourceOrder.lng,
+                sourceOrder.lng ?? fallbackCoords.lng,
+                -180,
+                180,
+            ),
+            status: "draft",
+            created_at: new Date().toISOString(),
         };
     });
 }
@@ -539,7 +588,7 @@ async function optimizeRouteSequence(
     const orderLookup = buildOrderLookup(clusters);
 
     try {
-        const { data } = await api.post("dispatch/routes/optimize", {
+        const { data } = await api.post(`${API_BASE}/dispatch/routes/optimize`, {
             clusters: normalizedClusters,
             start_date: startDate,
         });
@@ -619,8 +668,20 @@ async function optimizeRouteSequence(
  * @returns {Promise<Object>} Backend response
  */
 async function createRoute(payload) {
-    const { data } = await api.post("dispatch/routes", payload);
-    return data;
+    try {
+        const response = await api.post(`${API_BASE}/dispatch/routes`, payload);
+        return {
+            success: true,
+            message: response.data?.message || "Route created successfully",
+            routeId: response.data?.data?.route_id || response.data?.route_id || "NEW-ROUTE",
+        };
+    } catch (error) {
+        console.error("Failed to create route via API", error);
+        return {
+            success: false,
+            message: error.message || "Failed to create route",
+        };
+    }
 }
 
 /**
@@ -630,6 +691,7 @@ async function createRoute(payload) {
  */
 async function createEmergencyOrder(payload) {
     await delay(50);
+    const fallbackCoords = fallbackOrderCoords(Date.now());
 
     return {
         id: `ORD-E${Date.now().toString().slice(-6)}`,
@@ -642,8 +704,8 @@ async function createEmergencyOrder(payload) {
         perishable: false,
         express: true,
         selected: true,
-        lat: 24.65 + Math.random() * 0.15,
-        lng: 46.6 + Math.random() * 0.2,
+        lat: fallbackCoords.lat,
+        lng: fallbackCoords.lng,
     };
 }
 

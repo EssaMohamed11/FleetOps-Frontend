@@ -1,244 +1,145 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <base href="/" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Maintenance App</title>
-        <link rel="icon" href="data:," />
-        <link rel="stylesheet" href="./src/styles/main.css" />
-    </head>
-    <body>
-        <div class="dashboard-shell" data-shell>
-            <aside class="dashboard-sidebar" aria-label="Sidebar Navigation">
-                <div class="sidebar-brand">
-                    <div class="sidebar-brand__identity">
-                        <div class="sidebar-brand__icon">
-                            <i data-lucide="truck"></i>
-                        </div>
-                        <div class="sidebar-brand__meta">
-                            <strong class="sidebar-brand__title"
-                                >FleetOps</strong
-                            >
-                            <span class="sidebar-brand__subtitle"
-                                >Maintenance</span
-                            >
-                        </div>
-                    </div>
 
-                    <button
-                        title="Collapse"
-                        id="sidebar-collapse-btn"
-                        class="sidebar-collapse-btn"
-                        type="button"
-                        aria-controls="app-content"
-                        aria-expanded="true">
-                        <span aria-hidden="true">
-                            <i data-lucide="chevron-left"></i>
-                        </span>
-                    </button>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Maintenance App</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./src/styles/main.css" />
+    <!--    <style>
+        [data-shell] {
+            display: none;
+        }
+    </style>-->
+</head>
+
+<body>
+    <div class="dashboard-shell" data-shell>
+        <aside class="dashboard-sidebar" aria-label="Sidebar Navigation">
+            <div class="sidebar-brand">
+                <div class="sidebar-brand__identity">
+                    <div class="sidebar-brand__icon">
+                        <i data-lucide="truck"></i>
+                    </div>
+                    <div class="sidebar-brand__meta">
+                        <strong class="sidebar-brand__title">FleetOps</strong>
+                        <span class="sidebar-brand__subtitle">Maintenance</span>
+                    </div>
                 </div>
 
-                <nav class="sidebar-menu" aria-label="Main Menu">
-                    <a
-                        class="sidebar-link"
-                        href="/"
-                        data-link
-                        data-route="/"
-                        title="Dashboard">
-                        <span class="sidebar-link__icon"
-                            ><i data-lucide="layout-dashboard"></i
-                        ></span>
-                        <span class="sidebar-link__label">Dashboard</span>
-                    </a>
-                    <a
-                        class="sidebar-link"
-                        href="/work-orders"
-                        data-link
-                        data-route="/work-orders"
-                        title="Work Orders">
-                        <span class="sidebar-link__icon"
-                            ><i data-lucide="clipboard-list"></i
-                        ></span>
-                        <span class="sidebar-link__label">Work Orders</span>
-                    </a>
-                    <a
-                        class="sidebar-link"
-                        href="/my-work-orders"
-                        data-link
-                        data-route="/my-work-orders"
-                        title="My Work Orders">
-                        <span class="sidebar-link__icon"
-                            ><i data-lucide="clipboard-check"></i
-                        ></span>
-                        <span class="sidebar-link__label">My Work Orders</span>
-                    </a>
-                    <a
-                        class="sidebar-link"
-                        href="/vehicles"
-                        data-link
-                        data-route="/vehicles"
-                        title="Vehicles">
-                        <span class="sidebar-link__icon"
-                            ><i data-lucide="car"></i
-                        ></span>
-                        <span class="sidebar-link__label">Vehicles</span>
-                    </a>
-                    <a
-                        class="sidebar-link"
-                        href="/spare-parts"
-                        data-link
-                        data-route="/spare-parts"
-                        title="Spare Parts">
-                        <span class="sidebar-link__icon"
-                            ><i data-lucide="package"></i
-                        ></span>
-                        <span class="sidebar-link__label">Spare Parts</span>
-                    </a>
-                    <a
-                        class="sidebar-link"
-                        href="/technician-assignment"
-                        data-link
-                        data-route="/technician-assignment"
-                        title="Technician Assignment">
-                        <span class="sidebar-link__icon"
-                            ><i data-lucide="users"></i
-                        ></span>
-                        <span class="sidebar-link__label"
-                            >Technician Assignment</span
-                        >
-                    </a>
-                    <a
-                        class="sidebar-link"
-                        href="/fuel-efficiency"
-                        data-link
-                        data-route="/fuel-efficiency"
-                        title="Fuel &amp; Efficiency">
-                        <span class="sidebar-link__icon"
-                            ><i data-lucide="fuel"></i
-                        ></span>
-                        <span class="sidebar-link__label"
-                            >Fuel &amp; Efficiency</span
-                        >
-                    </a>
-                    <a
-                        class="sidebar-link"
-                        href="/alerts-inspections"
-                        data-link
-                        data-route="/alerts-inspections"
-                        title="Alerts &amp; Inspections">
-                        <span class="sidebar-link__icon"
-                            ><i data-lucide="triangle-alert"></i
-                        ></span>
-                        <span class="sidebar-link__label"
-                            >Alerts &amp; Inspections</span
-                        >
-                    </a>
-                    <a
-                        class="sidebar-link"
-                        href="/emergency-dispatch"
-                        data-link
-                        data-route="/emergency-dispatch"
-                        title="Emergency Dispatch">
-                        <span class="sidebar-link__icon"
-                            ><i data-lucide="siren"></i
-                        ></span>
-                        <span class="sidebar-link__label"
-                            >Emergency Dispatch</span
-                        >
-                    </a>
-                    <a
-                        class="sidebar-link"
-                        href="/cost-to-value"
-                        data-link
-                        data-route="/cost-to-value"
-                        title="Cost-to-Value">
-                        <span class="sidebar-link__icon"
-                            ><i data-lucide="trending-up"></i
-                        ></span>
-                        <span class="sidebar-link__label">Cost-to-Value</span>
-                    </a>
-                    <a
-                        class="sidebar-link"
-                        href="/notifications"
-                        data-link
-                        data-route="/notifications"
-                        title="Notifications">
-                        <span class="sidebar-link__icon"
-                            ><i data-lucide="bell"></i
-                        ></span>
-                        <span class="sidebar-link__label">Notifications</span>
-                        <span class="sidebar-link__badge">4</span>
-                    </a>
-                    <a
-                        class="sidebar-link"
-                        href="/preview-page"
-                        data-link
-                        data-route="/preview-page"
-                        title="Preview Page">
-                        <span class="sidebar-link__icon"
-                            ><i data-lucide="eye"></i
-                        ></span>
-                        <span class="sidebar-link__label">Preview Page</span>
-                    </a>
-                </nav>
-
-                <div class="sidebar-footer">
-                    <button class="sidebar-signout" type="button">
-                        <i data-lucide="log-out"></i>
-                        <span class="sidebar-link__label">Sign Out</span>
-                    </button>
-                </div>
-            </aside>
-
-            <div class="dashboard-main">
-                <header class="dashboard-topbar">
-                    <div class="dashboard-topbar__left">
-                        <button
-                            id="sidebar-mobile-btn"
-                            class="mobile-menu-btn"
-                            type="button"
-                            aria-label="Open sidebar">
-                            <i data-lucide="menu"></i>
-                        </button>
-                        <div class="topbar-title">
-                            <h1 id="nav-title">Maintenance</h1>
-                        </div>
-                        <div class="search-field topbar-search">
-                            <i data-lucide="search" class="search-icon"></i>
-
-                            <input
-                                type="text"
-                                placeholder="Search work orders, vehicles, parts..." />
-                        </div>
-                    </div>
-
-                    <div class="dashboard-topbar__right">
-                        <button
-                            class="topbar-icon-btn topbar-notification-btn"
-                            type="button"
-                            aria-label="Notifications"
-                            onclick="import('./src/utils/notification-ui.js').then(module => module.showNotificationPanel()).catch(err => console.error('Error loading panel:', err))">
-                            <i data-lucide="bell"></i>
-                            <span class="topbar-notification-badge" id="notif-badge">4</span>
-                        </button>
-                        <div class="topbar-user">
-                            <div class="topbar-user__avatar">JM</div>
-                            <div class="topbar-user__meta">
-                                <strong>James Mitchell</strong>
-                                <span>Fleet Manager</span>
-                            </div>
-                        </div>
-                    </div>
-                </header>
-
-                <main
-                    id="app-content"
-                    class="app-content"
-                    aria-live="polite"></main>
+                <button title="Collapse" id="sidebar-collapse-btn" class="sidebar-collapse-btn" type="button"
+                    aria-controls="app-content" aria-expanded="true">
+                    <span aria-hidden="true">
+                        <i data-lucide="chevron-left"></i>
+                    </span>
+                </button>
             </div>
-        </div>
 
-        <script type="module" src="./src/main.js"></script>
-    </body>
+            <nav class="sidebar-menu" aria-label="Main Menu">
+                <a class="sidebar-link" href="/" data-link data-route="/" title="Dashboard">
+                    <span class="sidebar-link__icon"><i data-lucide="layout-dashboard"></i></span>
+                    <span class="sidebar-link__label">Dashboard</span>
+                </a>
+                <a class="sidebar-link" href="/work-orders" data-link data-route="/work-orders" title="Work Orders">
+                    <span class="sidebar-link__icon"><i data-lucide="clipboard-list"></i></span>
+                    <span class="sidebar-link__label">Work Orders</span>
+                </a>
+                <a class="sidebar-link" href="/my-work-orders" data-link data-route="/my-work-orders"
+                    title="My Work Orders">
+                    <span class="sidebar-link__icon"><i data-lucide="clipboard-check"></i></span>
+                    <span class="sidebar-link__label">My Work Orders</span>
+                </a>
+                <a class="sidebar-link" href="/vehicles" data-link data-route="/vehicles" title="Vehicles">
+                    <span class="sidebar-link__icon"><i data-lucide="car"></i></span>
+                    <span class="sidebar-link__label">Vehicles</span>
+                </a>
+                <a class="sidebar-link" href="/spare-parts" data-link data-route="/spare-parts" title="Spare Parts">
+                    <span class="sidebar-link__icon"><i data-lucide="package"></i></span>
+                    <span class="sidebar-link__label">Spare Parts</span>
+                </a>
+                <a class="sidebar-link" href="/technician-assignment" data-link data-route="/technician-assignment"
+                    title="Technician Assignment">
+                    <span class="sidebar-link__icon"><i data-lucide="users"></i></span>
+                    <span class="sidebar-link__label">Technician Assignment</span>
+                </a>
+                <a class="sidebar-link" href="/fuel-efficiency" data-link data-route="/fuel-efficiency"
+                    title="Fuel &amp; Efficiency">
+                    <span class="sidebar-link__icon"><i data-lucide="fuel"></i></span>
+                    <span class="sidebar-link__label">Fuel &amp; Efficiency</span>
+                </a>
+                <a class="sidebar-link" href="/alerts-inspections" data-link data-route="/alerts-inspections"
+                    title="Alerts &amp; Inspections">
+                    <span class="sidebar-link__icon"><i data-lucide="triangle-alert"></i></span>
+                    <span class="sidebar-link__label">Alerts &amp; Inspections</span>
+                </a>
+                <a class="sidebar-link" href="/emergency-dispatch" data-link data-route="/emergency-dispatch"
+                    title="Emergency Dispatch">
+                    <span class="sidebar-link__icon"><i data-lucide="siren"></i></span>
+                    <span class="sidebar-link__label">Emergency Dispatch</span>
+                </a>
+                <a class="sidebar-link" href="/cost-to-value" data-link data-route="/cost-to-value"
+                    title="Cost-to-Value">
+                    <span class="sidebar-link__icon"><i data-lucide="trending-up"></i></span>
+                    <span class="sidebar-link__label">Cost-to-Value</span>
+                </a>
+                <a class="sidebar-link" href="/notifications" data-link data-route="/notifications"
+                    title="Notifications">
+                    <span class="sidebar-link__icon"><i data-lucide="bell"></i></span>
+                    <span class="sidebar-link__label">Notifications</span>
+                    <span class="sidebar-link__badge">4</span>
+                </a>
+                <a class="sidebar-link" href="/preview-page" data-link data-route="/preview-page" title="Preview Page">
+                    <span class="sidebar-link__icon"><i data-lucide="eye"></i></span>
+                    <span class="sidebar-link__label">Preview Page</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button class="sidebar-signout" type="button">
+                    <i data-lucide="log-out"></i>
+                    <span class="sidebar-link__label">Sign Out</span>
+                </button>
+            </div>
+        </aside>
+
+        <div class="dashboard-main">
+            <header class="dashboard-topbar">
+                <div class="dashboard-topbar__left">
+                    <button id="sidebar-mobile-btn" class="mobile-menu-btn" type="button" aria-label="Open sidebar">
+                        <i data-lucide="menu"></i>
+                    </button>
+                    <div class="topbar-title">
+                        <h1 id="nav-title">Maintenance</h1>
+                    </div>
+                    <div class="search-field topbar-search">
+                        <i data-lucide="search" class="search-icon"></i>
+
+                        <input type="text" placeholder="Search work orders, vehicles, parts..." />
+                    </div>
+                </div>
+
+                <div class="dashboard-topbar__right">
+                    <button class="topbar-icon-btn topbar-notification-btn" type="button" aria-label="Notifications"
+                        onclick="import('./src/utils/notification-ui.js').then(module => module.showNotificationPanel()).catch(err => console.error('Error loading panel:', err))">
+                        <i data-lucide="bell"></i>
+                        <span class="topbar-notification-badge" id="notif-badge">4</span>
+                    </button>
+                    <div class="topbar-user">
+                        <div class="topbar-user__avatar">JM</div>
+                        <div class="topbar-user__meta">
+                            <strong>James Mitchell</strong>
+                            <span>Fleet Manager</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main id="app-content" class="app-content" aria-live="polite"></main>
+        </div>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+</body>
+
 </html>

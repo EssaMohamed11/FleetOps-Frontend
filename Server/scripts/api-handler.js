@@ -11,7 +11,6 @@ const DEFAULT_CONFIG = {
     headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
     },
     retries: 0,
     retryDelay: 500, // ms
@@ -100,6 +99,8 @@ async function request(options = {}) {
 
     const mergedHeaders = {
         ...DEFAULT_CONFIG.headers,
+        // Always read token fresh from localStorage on every request
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
         ...headers,
     };
 

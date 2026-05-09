@@ -1,0 +1,43 @@
+<div class="login-split-layout">
+    <div class="login-branding">
+        <div class="branding-content stack">
+            <i data-lucide="truck" class="branding-logo"></i>
+            <h1 class="branding-title">FleetOps</h1>
+            <p class="branding-subtitle">Maintenance Management System</p>
+        </div>
+        <div class="branding-bg-shape shape-1"></div>
+        <div class="branding-bg-shape shape-2"></div>
+    </div>
+
+    <div class="login-form-container">
+        <div class="login-form-wrapper stack">
+            <div class="login-header">
+                <h2 class="heading-xl" style="font-weight: 700; font-size: 2rem;">Welcome back</h2>
+                <p class="text-subtle" style="margin-top: 0.5rem;">Please enter your details to sign in.</p>
+            </div>
+
+            <form id="login-form" class="stack" style="gap: 1.25rem; margin-top: 1rem;">
+                <div class="form-group stack" style="gap: 0.5rem;">
+                    <label for="email" style="font-weight: 500; font-size: 0.875rem;">Email Address</label>
+                    <input type="email" id="email" class="form-control login-input" required
+                        placeholder="admin@fleetops.com">
+                </div>
+
+                <div class="form-group stack" style="gap: 0.5rem;">
+                    <label for="password" style="font-weight: 500; font-size: 0.875rem;">Password</label>
+                    <input type="password" id="password" class="form-control login-input" required
+                        placeholder="••••••••">
+                </div>
+
+                <div id="login-error" class="badge badge-error"
+                    style="display: none; justify-content: center; padding: 0.75rem; border-radius: var(--radius-md);">
+                </div>
+
+                <button type="submit" id="login-btn" class="btn btn-primary"
+                    style="width: 100%; justify-content: center; padding: 0.875rem; font-size: 1rem; margin-top: 0.5rem; font-weight: 600;">
+                    Sign In
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

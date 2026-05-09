@@ -7,15 +7,20 @@ import {
 let cleanupFns = [];
 let state = null;
 
-export function mount() {
+export async function mount() {
     state = {
         activeStatus: "All",
         addForm: null,
         importFileName: "",
         modal: null,
-        orders: OrdersApi.getOrders(),
+        orders: [],
         searchTerm: "",
     };
+
+    const tbody = document.getElementById("orders-table-body");
+    if (tbody) tbody.innerHTML = `<tr><td colspan="12"><div style="text-align: center; padding: 2rem;">Loading orders from server...</div></td></tr>`;
+
+    state.orders = await OrdersApi.getOrders();
 
     bindPageEvents();
     renderPage();
@@ -215,8 +220,8 @@ function renderModal() {
         return;
     }
 
-    if (state.modal.type === "details") {
-        modalRoot.innerHTML = renderDetailsModal(state.modal.orderId);
+    if (state.modal.type === "details" && state.modal.orderData) {
+        modalRoot.innerHTML = renderDetailsModal(state.modal.orderData);
         return;
     }
 
@@ -230,8 +235,7 @@ function renderModal() {
     }
 }
 
-function renderDetailsModal(orderId) {
-    const order = OrdersApi.getOrderById(orderId);
+function renderDetailsModal(order) {
     if (!order) {
         return "";
     }
@@ -415,7 +419,7 @@ function renderImportModal() {
                         <strong>${isFilled ? state.importFileName : "Drop CSV or XML file here"}</strong>
                         <span>${isFilled ? "File selected and ready to import" : "or click to browse files"}</span>
                     </label>
-                    <input class="hidden-input" id="orders-import-file" type="file" accept=".csv,.xml" />
+                    <input class="hidden-input" id="orders-import-file" type="file" accept=".csv,.xml,.xlsx,.xls" />
                     <div class="import-note">
                         <i data-lucide="info"></i>
                         <span>${note}</span>
@@ -542,7 +546,7 @@ function handleFilterClick(event) {
     refreshIcons();
 }
 
-function handleTableClick(event) {
+async function handleTableClick(event) {
     if (event.target.closest('input[type="checkbox"]')) {
         event.stopPropagation();
         return;
@@ -556,7 +560,7 @@ function handleTableClick(event) {
         return;
     }
 
-    openDetailsModal(orderId);
+    await openDetailsModal(orderId);
 }
 
 function handleModalClick(event) {
@@ -605,26 +609,36 @@ function handleModalSubmit(event) {
 }
 
 function handleImportFileChange(event) {
-    state.importFileName = event.target.files?.[0]?.name ?? "";
+    const file = event.target.files?.[0];
+    state.importFile = file;
+    state.importFileName = file?.name ?? "";
     renderModal();
     refreshIcons();
 }
 
-function handleAddOrderSubmit(event) {
+async function handleAddOrderSubmit(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
 
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Creating...";
+    }
+
     state.addForm = Object.fromEntries(formData.entries());
-    OrdersApi.createOrder(state.addForm);
-    state.orders = OrdersApi.getOrders();
+    await OrdersApi.createOrder(state.addForm);
+    state.orders = await OrdersApi.getOrders();
     state.addForm = null;
     closeModal();
     renderPage();
 }
 
-function openDetailsModal(orderId) {
+async function openDetailsModal(orderId) {
+    const orderData = await OrdersApi.getOrderById(orderId);
     state.modal = {
         orderId,
+        orderData,
         tab: "live",
         type: "details",
     };
@@ -651,15 +665,36 @@ function closeModal() {
     renderModal();
 }
 
-function confirmImport() {
-    if (!state.importFileName) {
+async function confirmImport() {
+    if (!state.importFile) {
         return;
     }
 
-    OrdersApi.importOrders(state.importFileName);
-    state.orders = OrdersApi.getOrders();
-    closeModal();
-    renderPage();
+    const confirmBtn = document.querySelector("[data-action='confirm-import']");
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = "Importing...";
+    }
+
+    try {
+        const result = await OrdersApi.importOrders(state.importFile);
+        
+        if (result.errors && result.errors.length > 0) {
+            alert(`Imported ${result.imported} orders with some errors:\n${result.errors.slice(0, 5).join('\n')}${result.errors.length > 5 ? '\n...' : ''}`);
+        } else {
+            alert(`Successfully imported ${result.imported} orders.`);
+        }
+
+        state.orders = await OrdersApi.getOrders();
+        closeModal();
+        renderPage();
+    } catch (error) {
+        alert("Import failed: " + error.message);
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = "Confirm Import";
+        }
+    }
 }
 
 function handleExport() {

@@ -331,6 +331,10 @@
     background: #fff;
 }
 
+.live-monitoring-timeline--current {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .live-monitoring-date-input {
     display: inline-grid;
     grid-template-columns: 18px auto auto;
@@ -341,6 +345,12 @@
     border-radius: 16px;
     background: #f7f8fb;
     color: #6f8098;
+}
+
+.live-monitoring-date-input span {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 700;
 }
 
 .live-monitoring-date-input input {
@@ -644,4 +654,21 @@
     .live-monitoring-map {
         min-height: 460px;
     }
+}
+
+/* ── Leaflet vehicle-ID tooltips ─────────────────────────────────────────── */
+.live-map-tooltip {
+    background: rgba(15, 23, 42, 0.82) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    color: #fff !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    padding: 3px 8px !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25) !important;
+    white-space: nowrap !important;
+}
+
+.live-map-tooltip::before {
+    display: none !important;
 }

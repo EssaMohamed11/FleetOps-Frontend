@@ -171,6 +171,11 @@
     color: #9b28ff;
 }
 
+.priority-badge--high {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
 .priority-badge--normal {
     background: #eef2f8;
     color: #71829b;
@@ -193,6 +198,11 @@
 .status-badge--in-transit {
     background: #e6ebff;
     color: #5249ff;
+}
+
+.status-badge--intransit {
+    background: #e0f2fe;
+    color: #0277bd;
 }
 
 .status-badge--out-for-delivery {
