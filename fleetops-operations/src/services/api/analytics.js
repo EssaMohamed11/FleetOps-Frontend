@@ -176,46 +176,54 @@ async function getMaintenanceCostData() {
     const response = await api.get(
       "/api/v1/analytics/analytics-maintenance-cost",
     );
-    const d = response.data.data;
 
-    if (!d || Array.isArray(d) || typeof d !== "object") {
+    const payload = response.data?.data ?? response.data;
+    const vehicles = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload?.vehicles)
+          ? payload.vehicles
+          : [];
+
+    const summaryData = payload?.summary;
+    const preventiveValue = summaryData?.preventive?.value || 0;
+    const reactiveValue = summaryData?.reactive?.value || 0;
+    const total =
+      preventiveValue + reactiveValue ||
+      vehicles.reduce((sum, v) => sum + (v.total_cost || 0), 0);
+
+    if (!Array.isArray(vehicles) || vehicles.length === 0) {
       console.warn(
-        "Maintenance cost API returned an array instead of the expected object. Rendering empty maintenance cost state.",
+        "Maintenance cost API returned unexpected data shape. Expected array of vehicles.",
       );
       return {
-        summary: { total: 0, preventive: 0, reactive: 0, currency: "EGP" },
-        table: [],
-      };
-    }
-
-    if (!d || typeof d !== "object") {
-      console.warn(
-        "Maintenance cost API returned unexpected data shape. Rendering empty maintenance cost state.",
-      );
-      return {
-        summary: { total: 0, preventive: 0, reactive: 0, currency: "EGP" },
+        summary: {
+          total,
+          preventive: preventiveValue,
+          reactive: reactiveValue,
+          currency: "EGP",
+        },
         table: [],
       };
     }
 
     return {
       summary: {
-        total: d.grand_total || 0,
-        preventive: d.total_preventive || 0,
-        reactive: d.total_reactive || 0,
+        total,
+        preventive: preventiveValue,
+        reactive: reactiveValue,
         currency: "EGP",
       },
-      table: Array.isArray(d.top_vehicles)
-        ? d.top_vehicles.map((v) => ({
-            vehicle: v.VehicleLicense,
-            service: v.VehicleType,
-            date: "N/A", // the endpoint groups by vehicle, doesn't give date per vehicle easily
-            parts: v.total_cost / 2, // mock splitting
-            labor: v.total_cost / 2, // mock splitting
-            total: v.total_cost,
-            status: "Completed",
-          }))
-        : [],
+      table: vehicles.map((v) => ({
+        vehicle: v.vehicle_license || v.vehicle_id || v.license || "",
+        service: v.vehicle_model || v.VehicleType || "",
+        date: v.date || "N/A",
+        parts: (v.total_cost || 0) / 2,
+        labor: (v.total_cost || 0) / 2,
+        total: v.total_cost || 0,
+        status: v.status || "Completed",
+      })),
     };
   } catch (e) {
     console.error("Failed to fetch maintenance cost", e);
